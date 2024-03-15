@@ -40,10 +40,10 @@ Token_Kind :: enum {
 }
 
 Tokenizer :: struct {
-	src      : string,
-	read_idx : int,
-	write_idx: int,
-	char     : rune,
+	src         : string,
+	offset_read : int,
+	offset_write: int,
+	char        : rune,
 }
 
 tokenizer_init :: proc "contextless" (t: ^Tokenizer, src: string) {
@@ -54,56 +54,56 @@ tokenizer_init :: proc "contextless" (t: ^Tokenizer, src: string) {
 	}
 }
 
-token_make :: proc "contextless" (t: ^Tokenizer, kind: Token_Kind) -> (token: Token) {
+make_token :: proc "contextless" (t: ^Tokenizer, kind: Token_Kind) -> (token: Token) {
 	token.kind = kind
-	token.value = t.src[t.write_idx:t.read_idx]
-	t.write_idx = t.read_idx
+	token.value = t.src[t.offset_write:t.offset_read]
+	t.offset_write = t.offset_read
 	return
 }
 
 next_char :: proc "contextless" (t: ^Tokenizer) -> (char: rune, can_continue: bool) #optional_ok #no_bounds_check {
-	if t.read_idx >= len(t.src) {
+	if t.offset_read >= len(t.src) {
 		t.char = -1
 		return -1, false
 	}
 
 	width: int
-	char, width = utf8.decode_rune_in_string(t.src[t.read_idx:])
+	char, width = utf8.decode_rune_in_string(t.src[t.offset_read:])
 	t.char = char
-	t.read_idx += width
+	t.offset_read += width
 	return char, true
 }
 
 next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_continue: bool) #optional_ok {
-	if t.read_idx >= len(t.src) {
-		return Token{.EOF, ""}, false
+	if t.offset_read >= len(t.src) {
+		return make_token(t, .EOF), false
 	}
 
 	switch t.char {
 	// Whitespace
 	case ' ', '\t', '\n', '\r':
-		t.write_idx = t.read_idx
+		t.offset_write = t.offset_read
 		return next_token(t)
 	// Punctuators
-	case '(': return token_make(t, .Parenthesis_Left), true
-	case ')': return token_make(t, .Parenthesis_Right), true
-	case '[': return token_make(t, .Bracket_Left), true
-	case ']': return token_make(t, .Bracket_Right), true
-	case '{': return token_make(t, .Brace_Left), true
-	case '}': return token_make(t, .Brace_Right), true
-	case ':': return token_make(t, .Colon), true
-	case '=': return token_make(t, .Equals), true
-	case '@': return token_make(t, .At,), true
-	case '$': return token_make(t, .Dollar), true
-	case '!': return token_make(t, .Exclamation), true
-	case '|': return token_make(t, .Vertical_Bar), true
+	case '(': return make_token(t, .Parenthesis_Left), true
+	case ')': return make_token(t, .Parenthesis_Right), true
+	case '[': return make_token(t, .Bracket_Left), true
+	case ']': return make_token(t, .Bracket_Right), true
+	case '{': return make_token(t, .Brace_Left), true
+	case '}': return make_token(t, .Brace_Right), true
+	case ':': return make_token(t, .Colon), true
+	case '=': return make_token(t, .Equals), true
+	case '@': return make_token(t, .At,), true
+	case '$': return make_token(t, .Dollar), true
+	case '!': return make_token(t, .Exclamation), true
+	case '|': return make_token(t, .Vertical_Bar), true
 	case '.':
 		if '.' == next_char(t) &&
 		   '.' == next_char(t)
 		{
-			token = token_make(t, .Spread)
+			token = make_token(t, .Spread)
 		} else {
-			token = token_make(t, .Illegal)
+			token = make_token(t, .Illegal)
 		}
 	/* Int and Float
 	   123     | -123
@@ -126,9 +126,9 @@ scan_number :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_continue
 		case '.':
 			return scan_fraction(t)
 		case '0'..='9', 'a'..='z', 'A'..='Z', '_':
-			return token_make(t, .Illegal), true
+			return make_token(t, .Illegal), true
 		case:
-			return token_make(t, .Int), true
+			return make_token(t, .Int), true
 		}
 	}
 	
@@ -140,9 +140,9 @@ scan_number :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_continue
 		case '.':
 			return scan_fraction(t)
 		case 'a'..='z', 'A'..='Z', '_':
-			return token_make(t, .Illegal), true
+			return make_token(t, .Illegal), true
 		case:
-			return token_make(t, .Int), true
+			return make_token(t, .Int), true
 		}
 	}
 }
@@ -154,9 +154,9 @@ scan_fraction :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_contin
 		case '0'..='9':
 			continue
 		case 'a'..='z', 'A'..='Z', '_':
-			return token_make(t, .Illegal), true
+			return make_token(t, .Illegal), true
 		case:
-			return token_make(t, .Float), true
+			return make_token(t, .Float), true
 		}
 	}
 	return
