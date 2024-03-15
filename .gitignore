@@ -1,0 +1,6 @@
+# Ignore all files without an extension (build artifacts)
+*
+!*.*
+!*/
+
+ols.json
