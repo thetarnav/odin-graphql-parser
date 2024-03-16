@@ -29,6 +29,8 @@ Token_Kind :: enum {
 	Subscription,
 	Fragment,
 	Enum,
+	Type,
+	Input,
 	On,
 	Interface,
 	Implements,
@@ -51,13 +53,6 @@ Tokenizer :: struct {
 	char        : rune,
 	last_width  : int,
 }
-
-/*
-
-0123
-  ^
-
-*/
 
 tokenizer_init :: proc "contextless" (t: ^Tokenizer, src: string) {
 	t.src = src
@@ -153,6 +148,8 @@ next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: b
 		case "subscription":token = make_token_ignore_last_char(t, .Subscription)
 		case "fragment":    token = make_token_ignore_last_char(t, .Fragment)
 		case "enum":        token = make_token_ignore_last_char(t, .Enum)
+		case "type":        token = make_token_ignore_last_char(t, .Type)
+		case "input":       token = make_token_ignore_last_char(t, .Input)
 		case "on":          token = make_token_ignore_last_char(t, .On)
 		case "interface":   token = make_token_ignore_last_char(t, .Interface)
 		case "implements":  token = make_token_ignore_last_char(t, .Implements)
