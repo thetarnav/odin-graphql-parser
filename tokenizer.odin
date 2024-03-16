@@ -8,7 +8,7 @@ Token :: struct {
 }
 
 Token_Kind :: enum {
-	Illegal,
+	Invalid,
 	EOF,
 	// Punctuators
 	Parenthesis_Left,
@@ -64,6 +64,7 @@ make_token :: proc "contextless" (t: ^Tokenizer, kind: Token_Kind) -> (token: To
 }
 
 next_char :: proc "contextless" (t: ^Tokenizer) -> (char: rune, can_continue: bool) #optional_ok #no_bounds_check {
+
 	if t.offset_read >= len(t.src) {
 		t.char = -1
 		return -1, false
@@ -78,6 +79,7 @@ next_char :: proc "contextless" (t: ^Tokenizer) -> (char: rune, can_continue: bo
 
 @(require_results)
 next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_continue: bool) #optional_ok {
+	
 	if t.offset_read >= len(t.src) {
 		return make_token(t, .EOF), false
 	}
@@ -106,7 +108,7 @@ next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_continue:
 		{
 			token = make_token(t, .Spread)
 		} else {
-			token = make_token(t, .Illegal)
+			token = make_token(t, .Invalid)
 		}
 	/* Int and Float
 	   123     | -123
@@ -130,7 +132,7 @@ scan_number :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_continue
 		case '.':
 			return scan_fraction(t)
 		case '0'..='9', 'a'..='z', 'A'..='Z', '_':
-			return make_token(t, .Illegal), true
+			return make_token(t, .Invalid), true
 		case:
 			return make_token(t, .Int), true
 		}
@@ -144,7 +146,7 @@ scan_number :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_continue
 		case '.':
 			return scan_fraction(t)
 		case 'a'..='z', 'A'..='Z', '_':
-			return make_token(t, .Illegal), true
+			return make_token(t, .Invalid), true
 		case:
 			return make_token(t, .Int), true
 		}
@@ -159,7 +161,7 @@ scan_fraction :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_contin
 		case '0'..='9':
 			continue
 		case 'a'..='z', 'A'..='Z', '_':
-			return make_token(t, .Illegal), true
+			return make_token(t, .Invalid), true
 		case:
 			return make_token(t, .Float), true
 		}
