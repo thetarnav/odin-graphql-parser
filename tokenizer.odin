@@ -80,7 +80,10 @@ next_char :: proc "contextless" (t: ^Tokenizer) -> (char: rune, can_continue: bo
 @(require_results)
 next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_continue: bool) #optional_ok {
 	
-	if t.offset_read >= len(t.src) {
+	if t.offset_read < len(t.src){
+		can_continue = true
+	}
+	else if t.offset_read == t.offset_write {
 		return make_token(t, .EOF), false
 	}
 
@@ -90,18 +93,18 @@ next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_continue:
 		t.offset_write = t.offset_read
 		return next_token(t)
 	// Punctuators
-	case '(': return make_token(t, .Parenthesis_Left), true
-	case ')': return make_token(t, .Parenthesis_Right), true
-	case '[': return make_token(t, .Bracket_Left), true
-	case ']': return make_token(t, .Bracket_Right), true
-	case '{': return make_token(t, .Brace_Left), true
-	case '}': return make_token(t, .Brace_Right), true
-	case ':': return make_token(t, .Colon), true
-	case '=': return make_token(t, .Equals), true
-	case '@': return make_token(t, .At,), true
-	case '$': return make_token(t, .Dollar), true
-	case '!': return make_token(t, .Exclamation), true
-	case '|': return make_token(t, .Vertical_Bar), true
+	case '(': token = make_token(t, .Parenthesis_Left)
+	case ')': token = make_token(t, .Parenthesis_Right)
+	case '[': token = make_token(t, .Bracket_Left)
+	case ']': token = make_token(t, .Bracket_Right)
+	case '{': token = make_token(t, .Brace_Left)
+	case '}': token = make_token(t, .Brace_Right)
+	case ':': token = make_token(t, .Colon)
+	case '=': token = make_token(t, .Equals)
+	case '@': token = make_token(t, .At,)
+	case '$': token = make_token(t, .Dollar)
+	case '!': token = make_token(t, .Exclamation)
+	case '|': token = make_token(t, .Vertical_Bar)
 	case '.':
 		if '.' == next_char(t) &&
 		   '.' == next_char(t)
@@ -122,7 +125,7 @@ next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_continue:
 		return scan_number(t)
 	}
 
-	return token, true
+	return
 }
 
 @(private, require_results)

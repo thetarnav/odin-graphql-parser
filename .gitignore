@@ -3,4 +3,8 @@
 !*.*
 !*/
 
+# OLS config
 ols.json
+
+# Vscode config
+.vscode/*

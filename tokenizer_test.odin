@@ -38,9 +38,16 @@ test_tokenizer_cases :: proc(t: ^test.T) {
 		}
 		defer clear_dynamic_array(&tokens)
 
-		if len(tokens) != len(test_case.expected) {
-			test.errorf(t, "test case %q: expected %d tokens, got %d", test_case.name, len(test_case.expected), len(tokens))
-			continue
+		test.expectf(t,
+			len(tokens) == len(test_case.expected),
+			"\n%q:\n\texpected %d tokens, got %d\n", test_case.name, len(test_case.expected), len(tokens),
+		)
+
+		for token, i in tokens {
+			test.expectf(t,
+				token == test_case.expected[i],
+				"\n%q:\n\texpected tokens[%d] to be %v, got %v\n", test_case.name, i, test_case.expected[i], token,
+			)
 		}
 	}
 }
