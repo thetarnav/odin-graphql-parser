@@ -48,13 +48,15 @@ Tokenizer :: struct {
 
 tokenizer_init :: proc "contextless" (t: ^Tokenizer, src: string) {
 	t.src = src
-	first_ch, ok := next_char(t)
+	first_ch := next_char(t)
 	if first_ch == utf8.RUNE_BOM {
+		t.offset_write = t.offset_read
 		next_char(t)
 	}
 }
 
-make_token :: proc "contextless" (t: ^Tokenizer, kind: Token_Kind) -> (token: Token) {
+@(private, require_results)
+make_token :: proc "contextless" (t: ^Tokenizer, kind: Token_Kind) -> (token: Token) #no_bounds_check {
 	token.kind = kind
 	token.value = t.src[t.offset_write:t.offset_read]
 	t.offset_write = t.offset_read
@@ -74,6 +76,7 @@ next_char :: proc "contextless" (t: ^Tokenizer) -> (char: rune, can_continue: bo
 	return char, true
 }
 
+@(require_results)
 next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_continue: bool) #optional_ok {
 	if t.offset_read >= len(t.src) {
 		return make_token(t, .EOF), false
@@ -120,6 +123,7 @@ next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_continue:
 	return token, true
 }
 
+@(private, require_results)
 scan_number :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_continue: bool) #optional_ok {
 	if t.char == '0' {
 		switch next_char(t) {
@@ -147,6 +151,7 @@ scan_number :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_continue
 	}
 }
 
+@(private, require_results)
 scan_fraction :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_continue: bool) #optional_ok {
 	for {
 		char := next_char(t) or_break
