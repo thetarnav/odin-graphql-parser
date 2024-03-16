@@ -28,7 +28,12 @@ Token_Kind :: enum {
 	Mutation,
 	Subscription,
 	Fragment,
+	Enum,
 	On,
+	Interface,
+	Implements,
+	Extend,
+	Schema,
 	// Scalars
 	Int,
 	Float,
@@ -72,8 +77,8 @@ make_token :: proc "contextless" (t: ^Tokenizer, kind: Token_Kind) -> (token: To
 	return
 }
 @(private, require_results)
-make_invaild_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token) #no_bounds_check {
-	token.kind = .Invalid
+make_token_ignore_last_char :: proc "contextless" (t: ^Tokenizer, kind: Token_Kind) -> (token: Token) #no_bounds_check {
+	token.kind = kind
 	token.value = t.src[t.offset_write : t.offset_read-t.last_width]
 	t.offset_write = t.offset_read-t.last_width
 	return
@@ -83,7 +88,7 @@ next_char :: proc "contextless" (t: ^Tokenizer) -> (char: rune, before_eof: bool
 	if t.offset_read >= len(t.src) {
 		t.char = -1
 		t.offset_read = len(t.src)+1
-		t.last_width = 0
+		t.last_width = 1
 		return -1, false
 	}
 
@@ -96,7 +101,7 @@ next_char :: proc "contextless" (t: ^Tokenizer) -> (char: rune, before_eof: bool
 }
 
 @(require_results)
-next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: bool) #optional_ok {
+next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: bool) #optional_ok #no_bounds_check {
 	if t.offset_read > len(t.src) {
 		return make_token(t, .EOF), false
 	}
@@ -126,7 +131,7 @@ next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: b
 		{
 			token = make_token(t, .Spread)
 		} else {
-			token = make_invaild_token(t)
+			token = make_token_ignore_last_char(t, .Invalid)
 		}
 	// Int and Float
 	case '-':
@@ -134,6 +139,27 @@ next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: b
 		return scan_number(t)
 	case '0'..='9':
 		return scan_number(t)
+	// Keywords and Identifiers
+	case 'a'..='z', 'A'..='Z', '_':
+		for {
+			switch next_char(t) {
+			case 'a'..='z', 'A'..='Z', '0'..='9', '_': continue
+			}
+			break
+		}
+		switch t.src[t.offset_write : t.offset_read-t.last_width] {
+		case "query":       token = make_token_ignore_last_char(t, .Query)
+		case "mutation":    token = make_token_ignore_last_char(t, .Mutation)
+		case "subscription":token = make_token_ignore_last_char(t, .Subscription)
+		case "fragment":    token = make_token_ignore_last_char(t, .Fragment)
+		case "enum":        token = make_token_ignore_last_char(t, .Enum)
+		case "on":          token = make_token_ignore_last_char(t, .On)
+		case "interface":   token = make_token_ignore_last_char(t, .Interface)
+		case "implements":  token = make_token_ignore_last_char(t, .Implements)
+		case "extend":      token = make_token_ignore_last_char(t, .Extend)
+		case "schema":      token = make_token_ignore_last_char(t, .Schema)
+		case:               token = make_token_ignore_last_char(t, .Name)
+		}
 	}
 
 	return
@@ -150,20 +176,18 @@ scan_number :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: 
 	scan_fraction :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: bool) #optional_ok {
 		char := next_char(t)
 		if char < '0' || char > '9' {
-			return make_invaild_token(t), true
+			return make_token_ignore_last_char(t, .Invalid), true
 		}
 		for {
-			char = next_char(t)
-			switch char {
+			switch next_char(t) {
 			case '0'..='9':
 				continue
 			case 'a'..='z', 'A'..='Z', '_':
-				return make_invaild_token(t), true
+				return make_token_ignore_last_char(t, .Invalid), true
 			case:
-				break
+				return make_token_ignore_last_char(t, .Float), true
 			}
 		}
-		return make_token(t, .Float), true
 	}
 
 	if t.char == '0' {
@@ -171,25 +195,22 @@ scan_number :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: 
 		case '.':
 			return scan_fraction(t)
 		case '0'..='9', 'a'..='z', 'A'..='Z', '_':
-			return make_invaild_token(t), true
+			return make_token_ignore_last_char(t, .Invalid), true
 		case:
-			return make_token(t, .Int), true
+			return make_token_ignore_last_char(t, .Int), true
 		}
 	}
 	
 	for {
-		char := next_char(t) or_break
-		switch char {
+		switch next_char(t) {
 		case '0'..='9':
 			continue
 		case '.':
 			return scan_fraction(t)
 		case 'a'..='z', 'A'..='Z', '_':
-			return make_invaild_token(t), true
+			return make_token_ignore_last_char(t, .Invalid), true
 		case:
-			break
+			return make_token_ignore_last_char(t, .Int), true
 		}
 	}
-
-	return make_token(t, .Int), true
 }

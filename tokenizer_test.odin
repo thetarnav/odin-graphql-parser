@@ -14,6 +14,9 @@ expected_list := []Expect_Tokens_Case {
 		"",
 		{},
 	},
+	/*
+	Punctuators
+	*/
 	{   "Parenthesis_Left",
 		"(",
 		{{.Parenthesis_Left, "("}},
@@ -66,6 +69,9 @@ expected_list := []Expect_Tokens_Case {
 		"...",
 		{{.Spread, "..."}},
 	},
+	/*
+	Int and Float
+	*/
 	{   "zero",
 		"0",
 		{{.Int, "0"}},
@@ -84,7 +90,7 @@ expected_list := []Expect_Tokens_Case {
 	},
 	{   "invalid float",
 		"123.",
-		{{.Invalid, "123"}, {.Invalid, "."}},
+		{{.Invalid, "123."}},
 	},
 	{   "float zero",
 		"0.456",
@@ -102,39 +108,100 @@ expected_list := []Expect_Tokens_Case {
 		"-0.456",
 		{{.Float, "-0.456"}},
 	},
+	/*
+	Keywords
+	*/
+	{   "Query",
+	    "query",
+		{{.Query, "query"}},
+	},
+	{   "Mutation",
+	    "mutation",
+		{{.Mutation, "mutation"}},
+	},
+	{   "Subscription",
+	    "subscription",
+		{{.Subscription, "subscription"}},
+	},
+	{   "Fragment",
+	    "fragment",
+		{{.Fragment, "fragment"}},
+	},
+	{   "Enum",
+	    "enum",
+		{{.Enum, "enum"}},
+	},
+	{   "On",
+	    "on",
+		{{.On, "on"}},
+	},
+	{   "Interface",
+	    "interface",
+		{{.Interface, "interface"}},
+	},
+	{   "Implements",
+	    "implements",
+		{{.Implements, "implements"}},
+	},
+	{   "Extend",
+	    "extend",
+		{{.Extend, "extend"}},
+	},
+	{   "Schema",
+	    "schema",
+		{{.Schema, "schema"}},
+	},
+	/*
+	Names
+	*/
+	{   "Name",
+		"foo",
+		{{.Name, "foo"}},
+	},
+	{   "Name with underscore",
+		"foo_bar",
+		{{.Name, "foo_bar"}},
+	},
+	{   "Name with digits",
+		"foo123",
+		{{.Name, "foo123"}},
+	},
+	{   "Name with digits and underscore",
+		"foo_123",
+		{{.Name, "foo_123"}},
+	},
+	{   "Invalid Name",
+		"123foo",
+		{{.Invalid, "123"}, {.Name, "foo"}},
+	},
 }
 
 @(test)
 test_tokenizer_cases :: proc(t: ^test.T) {
+	tokens := make([dynamic]Token, 0, 10)
 
-	arr := []int{1, 2, 3, 4, 5, 6}
-	sli := arr[1:2]
-	fmt.printf("%v\n", sli)
+	for test_case in expected_list {
+		tokenizer: Tokenizer
+		tokenizer_init(&tokenizer, test_case.src)
 
-	// tokens := make([dynamic]Token, 0, 10)
+		for {
+			token := next_token(&tokenizer) or_break
+			append(&tokens, token)
+		}
+		defer clear_dynamic_array(&tokens)
 
-	// for test_case in expected_list {
-	// 	tokenizer: Tokenizer
-	// 	tokenizer_init(&tokenizer, test_case.src)
+		test.expectf(t,
+			len(tokens) == len(test_case.expected),
+			"\n\e[0;32m%q\e[0m:\e[0;31m\n\texpected %d tokens, got %d\n\e[0m",
+			test_case.name, len(test_case.expected), len(tokens),
+		)
 
-	// 	for {
-	// 		token := next_token(&tokenizer) or_break
-	// 		append(&tokens, token)
-	// 	}
-	// 	defer clear_dynamic_array(&tokens)
-
-	// 	test.expectf(t,
-	// 		len(tokens) == len(test_case.expected),
-	// 		"\n\e[0;32m%q\e[0m:\e[0;31m\n\texpected %d tokens, got %d\n\e[0m",
-	// 		test_case.name, len(test_case.expected), len(tokens),
-	// 	)
-
-	// 	for token, i in tokens {
-	// 		test.expectf(t,
-	// 			token == test_case.expected[i],
-	// 			"\n\e[0;32m%q\e[0m:\e[0;31m\n\texpected tokens[%d] to be %v, got %v\n\e[0m",
-	// 			test_case.name, i, test_case.expected[i], token,
-	// 		)
-	// 	}
-	// }
+		for token, i in tokens {
+			test.expectf(t,
+				token == test_case.expected[i],
+				"\n\e[0;32m%q\e[0m:\e[0;31m\n\texpected tokens[%d] to be %v, got %v\n\e[0m",
+				test_case.name, i, test_case.expected[i], token,
+			)
+		}
+	}
 }
