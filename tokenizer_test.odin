@@ -10,16 +10,50 @@ Expect_Tokens_Case :: struct {
 }
 
 expected_list := []Expect_Tokens_Case {
-	{
-		"empty",
+	{   "empty",
 		"",
 		{},
 	},
-	{
-		"zero",
+	{   "zero",
 		"0",
 		{
 			{.Int, "0"},
+		},
+	},
+	{   "int",
+		"123",
+		{
+			{.Int, "123"},
+		},
+	},
+	{   "float",
+		"123.456",
+		{
+			{.Float, "123.456"},
+		},
+	},
+	{   "float zero",
+		"0.456",
+		{
+			{.Float, "0.456"},
+		},
+	},
+	{   "negative int",
+		"-123",
+		{
+			{.Int, "-123"},
+		},
+	},
+	{   "negative float",
+		"-123.456",
+		{
+			{.Float, "-123.456"},
+		},
+	},
+	{   "negative float zero",
+		"-0.456",
+		{
+			{.Float, "-0.456"},
 		},
 	},
 }

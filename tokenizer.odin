@@ -151,9 +151,11 @@ scan_number :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_continue
 		case 'a'..='z', 'A'..='Z', '_':
 			return make_token(t, .Invalid), true
 		case:
-			return make_token(t, .Int), true
+			break
 		}
 	}
+
+	return make_token(t, .Int), true
 }
 
 @(private, require_results)
@@ -166,8 +168,8 @@ scan_fraction :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_contin
 		case 'a'..='z', 'A'..='Z', '_':
 			return make_token(t, .Invalid), true
 		case:
-			return make_token(t, .Float), true
+			break
 		}
 	}
-	return
+	return make_token(t, .Float), true
 }
