@@ -57,9 +57,10 @@ tokenizer_init :: proc "contextless" (t: ^Tokenizer, src: string) {
 
 @(private, require_results)
 make_token :: proc "contextless" (t: ^Tokenizer, kind: Token_Kind) -> (token: Token) #no_bounds_check {
+	next_char(t)
 	token.kind = kind
-	token.value = t.src[t.offset_write:t.offset_read]
-	t.offset_write = t.offset_read
+	token.value = t.src[t.offset_write:t.offset_read-1]
+	t.offset_write = t.offset_read-1
 	return
 }
 
@@ -67,6 +68,7 @@ next_char :: proc "contextless" (t: ^Tokenizer) -> (char: rune, can_continue: bo
 
 	if t.offset_read >= len(t.src) {
 		t.char = -1
+		t.offset_read = len(t.src)+1
 		return -1, false
 	}
 
@@ -79,13 +81,11 @@ next_char :: proc "contextless" (t: ^Tokenizer) -> (char: rune, can_continue: bo
 
 @(require_results)
 next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_continue: bool) #optional_ok {
-	
-	if t.offset_read < len(t.src){
-		can_continue = true
-	}
-	else if t.offset_read == t.offset_write {
+
+	if t.offset_read > len(t.src) {
 		return make_token(t, .EOF), false
 	}
+	can_continue = true
 
 	switch t.char {
 	// Whitespace
