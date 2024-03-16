@@ -29,7 +29,7 @@ Token_Kind :: enum {
 	Subscription,
 	Fragment,
 	On,
-	// Literals
+	// Scalars
 	Int,
 	Float,
 	String,
@@ -44,7 +44,15 @@ Tokenizer :: struct {
 	offset_read : int,
 	offset_write: int,
 	char        : rune,
+	last_width  : int,
 }
+
+/*
+
+0123
+  ^
+
+*/
 
 tokenizer_init :: proc "contextless" (t: ^Tokenizer, src: string) {
 	t.src = src
@@ -57,18 +65,25 @@ tokenizer_init :: proc "contextless" (t: ^Tokenizer, src: string) {
 
 @(private, require_results)
 make_token :: proc "contextless" (t: ^Tokenizer, kind: Token_Kind) -> (token: Token) #no_bounds_check {
-	next_char(t)
 	token.kind = kind
-	token.value = t.src[t.offset_write:t.offset_read-1]
-	t.offset_write = t.offset_read-1
+	token.value = t.src[t.offset_write : t.offset_read]
+	t.offset_write = t.offset_read
+	next_char(t)
+	return
+}
+@(private, require_results)
+make_invaild_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token) #no_bounds_check {
+	token.kind = .Invalid
+	token.value = t.src[t.offset_write : t.offset_read-t.last_width]
+	t.offset_write = t.offset_read-t.last_width
 	return
 }
 
-next_char :: proc "contextless" (t: ^Tokenizer) -> (char: rune, can_continue: bool) #optional_ok #no_bounds_check {
-
+next_char :: proc "contextless" (t: ^Tokenizer) -> (char: rune, before_eof: bool) #optional_ok #no_bounds_check {
 	if t.offset_read >= len(t.src) {
 		t.char = -1
 		t.offset_read = len(t.src)+1
+		t.last_width = 0
 		return -1, false
 	}
 
@@ -76,16 +91,16 @@ next_char :: proc "contextless" (t: ^Tokenizer) -> (char: rune, can_continue: bo
 	char, width = utf8.decode_rune_in_string(t.src[t.offset_read:])
 	t.char = char
 	t.offset_read += width
+	t.last_width = width
 	return char, true
 }
 
 @(require_results)
-next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_continue: bool) #optional_ok {
-
+next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: bool) #optional_ok {
 	if t.offset_read > len(t.src) {
 		return make_token(t, .EOF), false
 	}
-	can_continue = true
+	before_eof = true
 
 	switch t.char {
 	// Whitespace
@@ -111,13 +126,9 @@ next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_continue:
 		{
 			token = make_token(t, .Spread)
 		} else {
-			token = make_token(t, .Invalid)
+			token = make_invaild_token(t)
 		}
-	/* Int and Float
-	   123     | -123
-	   123.456 | -123.456
-	   0.123   | -0.123
-	*/
+	// Int and Float
 	case '-':
 		next_char(t)
 		return scan_number(t)
@@ -129,13 +140,38 @@ next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_continue:
 }
 
 @(private, require_results)
-scan_number :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_continue: bool) #optional_ok {
+scan_number :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: bool) #optional_ok {
+	/*  e.g.
+	    123
+	    123.456
+	    0.123
+		0
+	*/
+	scan_fraction :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: bool) #optional_ok {
+		char := next_char(t)
+		if char < '0' || char > '9' {
+			return make_invaild_token(t), true
+		}
+		for {
+			char = next_char(t)
+			switch char {
+			case '0'..='9':
+				continue
+			case 'a'..='z', 'A'..='Z', '_':
+				return make_invaild_token(t), true
+			case:
+				break
+			}
+		}
+		return make_token(t, .Float), true
+	}
+
 	if t.char == '0' {
 		switch next_char(t) {
 		case '.':
 			return scan_fraction(t)
 		case '0'..='9', 'a'..='z', 'A'..='Z', '_':
-			return make_token(t, .Invalid), true
+			return make_invaild_token(t), true
 		case:
 			return make_token(t, .Int), true
 		}
@@ -149,27 +185,11 @@ scan_number :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_continue
 		case '.':
 			return scan_fraction(t)
 		case 'a'..='z', 'A'..='Z', '_':
-			return make_token(t, .Invalid), true
+			return make_invaild_token(t), true
 		case:
 			break
 		}
 	}
 
 	return make_token(t, .Int), true
-}
-
-@(private, require_results)
-scan_fraction :: proc "contextless" (t: ^Tokenizer) -> (token: Token, can_continue: bool) #optional_ok {
-	for {
-		char := next_char(t) or_break
-		switch char {
-		case '0'..='9':
-			continue
-		case 'a'..='z', 'A'..='Z', '_':
-			return make_token(t, .Invalid), true
-		case:
-			break
-		}
-	}
-	return make_token(t, .Float), true
 }

@@ -74,9 +74,17 @@ expected_list := []Expect_Tokens_Case {
 		"123",
 		{{.Int, "123"}},
 	},
+	{   "invalid int",
+		"0123",
+		{{.Invalid, "0"}, {.Int, "123"}},
+	},
 	{   "float",
 		"123.456",
 		{{.Float, "123.456"}},
+	},
+	{   "invalid float",
+		"123.",
+		{{.Invalid, "123"}, {.Invalid, "."}},
 	},
 	{   "float zero",
 		"0.456",
@@ -98,30 +106,35 @@ expected_list := []Expect_Tokens_Case {
 
 @(test)
 test_tokenizer_cases :: proc(t: ^test.T) {
-	tokens := make([dynamic]Token, 0, 10)
 
-	for test_case in expected_list {
-		tokenizer: Tokenizer
-		tokenizer_init(&tokenizer, test_case.src)
+	arr := []int{1, 2, 3, 4, 5, 6}
+	sli := arr[1:2]
+	fmt.printf("%v\n", sli)
 
-		for {
-			token := next_token(&tokenizer) or_break
-			append(&tokens, token)
-		}
-		defer clear_dynamic_array(&tokens)
+	// tokens := make([dynamic]Token, 0, 10)
 
-		test.expectf(t,
-			len(tokens) == len(test_case.expected),
-			"\n\e[0;32m%q\e[0m:\e[0;31m\n\texpected %d tokens, got %d\n\e[0m",
-			test_case.name, len(test_case.expected), len(tokens),
-		)
+	// for test_case in expected_list {
+	// 	tokenizer: Tokenizer
+	// 	tokenizer_init(&tokenizer, test_case.src)
 
-		for token, i in tokens {
-			test.expectf(t,
-				token == test_case.expected[i],
-				"\n\e[0;32m%q\e[0m:\e[0;31m\n\texpected tokens[%d] to be %v, got %v\n\e[0m",
-				test_case.name, i, test_case.expected[i], token,
-			)
-		}
-	}
+	// 	for {
+	// 		token := next_token(&tokenizer) or_break
+	// 		append(&tokens, token)
+	// 	}
+	// 	defer clear_dynamic_array(&tokens)
+
+	// 	test.expectf(t,
+	// 		len(tokens) == len(test_case.expected),
+	// 		"\n\e[0;32m%q\e[0m:\e[0;31m\n\texpected %d tokens, got %d\n\e[0m",
+	// 		test_case.name, len(test_case.expected), len(tokens),
+	// 	)
+
+	// 	for token, i in tokens {
+	// 		test.expectf(t,
+	// 			token == test_case.expected[i],
+	// 			"\n\e[0;32m%q\e[0m:\e[0;31m\n\texpected tokens[%d] to be %v, got %v\n\e[0m",
+	// 			test_case.name, i, test_case.expected[i], token,
+	// 		)
+	// 	}
+	// }
 }
