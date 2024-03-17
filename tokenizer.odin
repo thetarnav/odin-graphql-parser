@@ -44,6 +44,7 @@ Token_Kind :: enum {
 	Int,
 	Float,
 	String,
+	String_Block,
 	// Identifiers
 	Name,
 	// Operators
@@ -187,7 +188,7 @@ next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: b
 					   '"' == next_char(t) &&
 					   '"' == next_char(t)
 					{
-						return make_token(t, .String), true
+						return make_token(t, .String_Block), true
 					}
 					escaping = false
 				case:
