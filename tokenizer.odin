@@ -226,14 +226,13 @@ scan_number :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: 
 		0
 	*/
 	scan_fraction :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: bool) #optional_ok {
-		char := next_char(t)
-		if char < '0' || char > '9' {
-			return make_token_ignore_last_char(t, .Invalid), true
+		switch next_char(t) {
+		case '0'..='9': // continue
+		case: return make_token_ignore_last_char(t, .Invalid), true
 		}
 		for {
 			switch next_char(t) {
-			case '0'..='9':
-				continue
+			case '0'..='9': // continue
 			case 'a'..='z', 'A'..='Z', '_':
 				return make_token_ignore_last_char(t, .Invalid), true
 			case:
@@ -255,8 +254,7 @@ scan_number :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: 
 	
 	for {
 		switch next_char(t) {
-		case '0'..='9':
-			continue
+		case '0'..='9': // continue
 		case '.':
 			return scan_fraction(t)
 		case 'a'..='z', 'A'..='Z', '_':
