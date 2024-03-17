@@ -28,10 +28,14 @@ Token_Kind :: enum {
 	Mutation,
 	Subscription,
 	Fragment,
+	Directive,
 	Enum,
+	Union,
+	Scalar,
 	Type,
 	Input,
 	On,
+	Repeatable,
 	Interface,
 	Implements,
 	Extend,
@@ -147,10 +151,14 @@ next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: b
 		case "mutation":    token = make_token_ignore_last_char(t, .Mutation)
 		case "subscription":token = make_token_ignore_last_char(t, .Subscription)
 		case "fragment":    token = make_token_ignore_last_char(t, .Fragment)
+		case "directive":   token = make_token_ignore_last_char(t, .Directive)
 		case "enum":        token = make_token_ignore_last_char(t, .Enum)
+		case "union":       token = make_token_ignore_last_char(t, .Union)
+		case "scalar":      token = make_token_ignore_last_char(t, .Scalar)
 		case "type":        token = make_token_ignore_last_char(t, .Type)
 		case "input":       token = make_token_ignore_last_char(t, .Input)
 		case "on":          token = make_token_ignore_last_char(t, .On)
+		case "repeatable":  token = make_token_ignore_last_char(t, .Repeatable)
 		case "interface":   token = make_token_ignore_last_char(t, .Interface)
 		case "implements":  token = make_token_ignore_last_char(t, .Implements)
 		case "extend":      token = make_token_ignore_last_char(t, .Extend)
