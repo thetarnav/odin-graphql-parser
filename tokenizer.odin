@@ -64,8 +64,7 @@ Tokenizer :: struct {
 
 tokenizer_init :: proc "contextless" (t: ^Tokenizer, src: string) {
 	t.src = src
-	first_ch := next_char(t)
-	if first_ch == utf8.RUNE_BOM {
+	if next_char(t) == utf8.RUNE_BOM {
 		t.offset_write = t.offset_read
 		next_char(t)
 	}
@@ -95,12 +94,11 @@ next_char :: proc "contextless" (t: ^Tokenizer) -> (char: rune, before_eof: bool
 		return 0, false
 	}
 
-	width: int
-	char, width = utf8.decode_rune_in_string(t.src[t.offset_read:])
-	t.char = char
+	ch, width := utf8.decode_rune_in_string(t.src[t.offset_read:])
+	t.char = ch
 	t.offset_read += width
 	t.last_width = width
-	return char, true
+	return ch, true
 }
 
 @(require_results)
