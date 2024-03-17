@@ -2,6 +2,7 @@
 *
 !*.*
 !*/
+*.bin
 
 # OLS config
 ols.json
