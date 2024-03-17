@@ -110,8 +110,8 @@ next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: b
 	before_eof = true
 
 	switch t.char {
-	// Whitespace
-	case ' ', '\t', '\n', '\r':
+	// Whitespace and comma
+	case ',', ' ', '\t', '\n', '\r':
 		t.offset_write = t.offset_read
 		next_char(t)
 		return next_token(t)

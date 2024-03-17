@@ -310,6 +310,73 @@ expected_list := []Expect_Tokens_Case {
 		"# foo\r123",
 		{{.Int, "123"}},
 	},
+	/*
+	Code Snippets
+	*/
+	{   "Query Example",
+`query Global_Link($url: String = "https://example.com") {
+	link(url: $url)
+}`,     {
+			{.Query, "query"},
+			{.Name, "Global_Link"},
+			{.Parenthesis_Left, "("},
+			{.Dollar, "$"},
+			{.Name, "url"},
+			{.Colon, ":"},
+			{.Name, "String"},
+			{.Equals, "="},
+			{.String, `"https://example.com"`},
+			{.Parenthesis_Right, ")"},
+			{.Brace_Left, "{"},
+			{.Name, "link"},
+			{.Parenthesis_Left, "("},
+			{.Name, "url"},
+			{.Colon, ":"},
+			{.Dollar, "$"},
+			{.Name, "url"},
+			{.Parenthesis_Right, ")"},
+			{.Brace_Right, "}"},
+		},
+	},
+	{   "Nested Query Example",
+`query Schema {
+	types {
+		name, fields {
+			...display_field
+		}
+	}
+}
+
+fragment display_field on __Field {
+	name
+	args {name}
+}`,	 	{
+			{.Query, "query"},
+			{.Name, "Schema"},
+			{.Brace_Left, "{"},
+			{.Name, "types"},
+			{.Brace_Left, "{"},
+			{.Name, "name"},
+			{.Name, "fields"},
+			{.Brace_Left, "{"},
+			{.Spread, "..."},
+			{.Name, "display_field"},
+			{.Brace_Right, "}"},
+			{.Brace_Right, "}"},
+			{.Brace_Right, "}"},
+			{.Fragment, "fragment"},
+			{.Name, "display_field"},
+			{.On, "on"},
+			{.Name, "__Field"},
+			{.Brace_Left, "{"},
+			{.Name, "name"},
+			{.Name, "args"},
+			{.Brace_Left, "{"},
+			{.Name, "name"},
+			{.Brace_Right, "}"},
+			{.Brace_Right, "}"},
+		},	
+	},
 }
 
 test_only_name: string
@@ -341,11 +408,6 @@ test_tokenizer_cases :: proc(t: ^test.T) {
 			"\n\e[0;32m%q\e[0m:\e[0;31m\n\texpected %d tokens, got %d\n\e[0m",
 			test_case.name, len(test_case.expected), len(tokens),
 		)
-
-		if !good {
-			failed_count += 1
-			continue
-		}
 
 		for token, i in tokens {
 			token_good := test.expectf(t,
