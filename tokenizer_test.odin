@@ -136,6 +136,18 @@ expected_list := []Expect_Tokens_Case {
 	    "schema",
 		{{.Schema, "schema"}},
 	},
+	{   "True",
+	    "true",
+		{{.True, "true"}},
+	},
+	{   "False",
+	    "false",
+		{{.False, "false"}},
+	},
+	{   "Null",
+	    "null",
+		{{.Null, "null"}},
+	},
 	/*
 	Names
 	*/

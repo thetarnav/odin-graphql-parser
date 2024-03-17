@@ -40,6 +40,10 @@ Token_Kind :: enum {
 	Implements,
 	Extend,
 	Schema,
+	// Keyword Values
+	True,
+	False,
+	Null,
 	// Scalars
 	Int,
 	Float,
@@ -164,6 +168,9 @@ next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: b
 		case "implements":  token = make_token_ignore_last_char(t, .Implements)
 		case "extend":      token = make_token_ignore_last_char(t, .Extend)
 		case "schema":      token = make_token_ignore_last_char(t, .Schema)
+		case "true":        token = make_token_ignore_last_char(t, .True)
+		case "false":       token = make_token_ignore_last_char(t, .False)
+		case "null":        token = make_token_ignore_last_char(t, .Null)
 		case:               token = make_token_ignore_last_char(t, .Name)
 		}
 	// String
