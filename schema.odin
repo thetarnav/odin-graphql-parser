@@ -2,21 +2,23 @@ package gql
 
 Schema :: struct {
 	types       : []Type,
-	query       : Type,
-	mutation    : Maybe(Type),
-	subscription: Maybe(Type),
+	query       : Type_Name,
+	mutation    : Maybe(Type_Name),
+	subscription: Maybe(Type_Name),
 }
 
 Type :: struct {
 	kind        : Type_Kind,
-	name        : string,
+	name        : Type_Name,
+	types       : []Type_Name,   // Interface and Union
+	interfaces  : []Type_Name,   // Object and Interface
 	fields      : []Field,       // Object and Interface
-	interfaces  : []Type,        // Object and Interface
-	types       : []Type,        // Interface and Union
-	enum_values : []Enum_Value,  // Enum
+	enum_values : []string,      // Enum
 	input_fields: []Input_Value, // Input_Object
-	of_type     : ^Type,         // Non_Null and List
+	of_type     : Type_Name,     // Non_Null and List
 }
+
+Type_Name :: distinct string
 
 Type_Kind :: enum {
 	Scalar,
@@ -32,61 +34,16 @@ Type_Kind :: enum {
 Field :: struct {
 	name: string,
 	args: []Input_Value,
-	type: Type,
+	type: Type_Name,
 }
 
 Input_Value :: struct {
 	name   : string,
-	type   : Type,
-	default: Maybe(string),
+	type   : Type_Name,
 }
 
-Enum_Value :: struct {
-	name: string,
-}
-
-// Type :: union {
-// 	Scalar,
-// 	Object,
-// 	Interface,
-// 	Union,
-// 	Enum,
-// 	Input,
-// 	List,
-// 	Non_Null,
-// }
-
-// Scalar :: struct {
-// 	name: string,
-// }
-// Object :: struct {
-// 	name      : string,
-// 	fields    : []Field,
-// 	interfaces: []Interface,
-// }
-// Interface :: struct {
-// 	name      : string,
-// 	fields    : []Field,
-// 	interfaces: []Interface,
-// 	types     : []Object, // List of Object types that implement this interface
-// }
-// Union :: struct {
-// 	name : string,
-// 	types: []Type,
-// }
-// Enum :: struct {
-// 	name  : string,
-// 	values: []Enum_Value,
-// }
-// Input :: struct {
-// 	name  : string,
-// 	values: []Input_Value,
-// }
-// List :: struct {
-// 	name: string,
-// 	type: ^Type,
-// }
-// Non_Null :: struct {
-// 	name: string,
-// 	type: ^Type,
-// }
+scalar_string  := Type{kind = .Scalar, name = "String"}
+scalar_int     := Type{kind = .Scalar, name = "Int"}
+scalar_float   := Type{kind = .Scalar, name = "Float"}
+scalar_boolean := Type{kind = .Scalar, name = "Boolean"}
+scalar_id      := Type{kind = .Scalar, name = "ID"}
