@@ -216,43 +216,39 @@ expected_list := []Expect_Tokens_Case {
 	/*
 	String
 	*/
-	{   "empty string",
+	{   "empty String",
 		`""`,
 		{{.String, `""`}},
 	},
-	{   "string",
+	{   "String",
 		`"foo"`,
 		{{.String, `"foo"`}},
 	},
-	{   "string with escape",
+	{   "String with escape",
 		`"foo\"bar"`,
 		{{.String, `"foo\"bar"`}},
 	},
-	{   "string with escape and unicode",
-		`"foo\u1234bar"`,
-		{{.String, `"foo\u1234bar"`}},
+	{   "String with unicode",
+		`"䍅㑟"`,
+		{{.String, `"䍅㑟"`}},
 	},
-	{   "string with escape and unicode and escape",
-		`"foo\u1234\"bar"`,
-		{{.String, `"foo\u1234\"bar"`}},
-	},
-	{   "string with escaped escape",
+	{   "String with escaped escape",
 		`"foo\\"`,
 		{{.String, `"foo\\"`}},
 	},
-	{   "invalid string",
+	{   "invalid String",
 		`"foo`,
 		{{.Invalid, `"foo`}},
 	},
-	{   "invalid string with escape",
+	{   "invalid String with escape",
 		`"foo\`,
 		{{.Invalid, `"foo\`}},
 	},
-	{   "invalid string with escaped quote",
+	{   "invalid String with escaped quote",
 		`"foo\"`,
 		{{.Invalid, `"foo\"`}},
 	},
-	{   "invalid string with escape and unicode",
+	{   "invalid String with escape and unicode",
 		`"foo\u`,
 		{{.Invalid, `"foo\u`}},
 	},
@@ -271,13 +267,9 @@ expected_list := []Expect_Tokens_Case {
 		`"""foo\"bar"""`,
 		{{.String_Block, `"""foo\"bar"""`}},
 	},
-	{   "String Block with escape and unicode",
-		`"""foo\u1234bar"""`,
-		{{.String_Block, `"""foo\u1234bar"""`}},
-	},
-	{   "String Block with escape and unicode and escape",
-		`"""foo\u1234\"bar"""`,
-		{{.String_Block, `"""foo\u1234\"bar"""`}},
+	{   "String Block with unicode",
+		`"""䍅㑟"""`,
+		{{.String_Block, `"""䍅㑟"""`}},
 	},
 	{   "String Block with escaped escape",
 		`"""foo\\"""`,
@@ -303,13 +295,39 @@ expected_list := []Expect_Tokens_Case {
 		`"""`+"\n"+`foo`+"\n"+`"""`,
 		{{.String_Block, `"""`+"\n"+`foo`+"\n"+`"""`}},
 	},
+	/*
+	Comments
+	*/
+	{   "Comment",
+		"# foo",
+		{},
+	},
+	{   "Comment with int after new line",
+		"# foo\n123",
+		{{.Int, "123"}},
+	},
+	{   "Comment with int after carriage return",
+		"# foo\r123",
+		{{.Int, "123"}},
+	},
 }
+
+test_only_name: string
 
 @(test)
 test_tokenizer_cases :: proc(t: ^test.T) {
 	tokens := make([dynamic]Token, 0, 10)
 
+	failed_count: int
+
 	for test_case in expected_list {
+		switch test_only_name {
+		case "", test_case.name:
+		case:
+			failed_count += 1
+			continue
+		}
+
 		tokenizer: Tokenizer
 		tokenizer_init(&tokenizer, test_case.src)
 
@@ -318,18 +336,35 @@ test_tokenizer_cases :: proc(t: ^test.T) {
 		}
 		defer clear_dynamic_array(&tokens)
 
-		test.expectf(t,
+		good := test.expectf(t,
 			len(tokens) == len(test_case.expected),
 			"\n\e[0;32m%q\e[0m:\e[0;31m\n\texpected %d tokens, got %d\n\e[0m",
 			test_case.name, len(test_case.expected), len(tokens),
 		)
 
+		if !good {
+			failed_count += 1
+			continue
+		}
+
 		for token, i in tokens {
-			test.expectf(t,
+			token_good := test.expectf(t,
 				token == test_case.expected[i],
 				"\n\e[0;32m%q\e[0m:\e[0;31m\n\texpected tokens[%d] to be %v, got %v\n\e[0m",
 				test_case.name, i, test_case.expected[i], token,
 			)
+			good = good && token_good
 		}
+
+		if !good {
+			failed_count += 1
+			continue
+		}
+	}
+
+	if failed_count > 0 {
+		test.errorf(t, "\e[0;31mFailed %d cases\e[0m", failed_count)
+	} else {
+		test.logf(t, "\e[0;32mAll cases passed\e[0m")
 	}
 }

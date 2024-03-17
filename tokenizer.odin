@@ -103,6 +103,7 @@ next_char :: proc "contextless" (t: ^Tokenizer) -> (char: rune, before_eof: bool
 
 @(require_results)
 next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: bool) #optional_ok #no_bounds_check {
+
 	if t.offset_read > len(t.src) {
 		return make_token(t, .EOF), false
 	}
@@ -112,7 +113,18 @@ next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: b
 	// Whitespace
 	case ' ', '\t', '\n', '\r':
 		t.offset_write = t.offset_read
+		next_char(t)
 		return next_token(t)
+	// Ignore Comment
+	case '#':
+		for {
+			switch next_char(t) {
+			case 0, '\n', '\r':
+				t.offset_write = t.offset_read
+				next_char(t)
+				return next_token(t)
+			}
+		}
 	// Punctuators
 	case '(': token = make_token(t, .Parenthesis_Left)
 	case ')': token = make_token(t, .Parenthesis_Right)
@@ -217,9 +229,11 @@ next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: b
 				escaping = false
 			}
 		}
+	case:
+		token = make_token(t, .Invalid)
 	}
 
-	return
+	return 
 }
 
 @(private, require_results)
