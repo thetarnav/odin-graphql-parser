@@ -85,10 +85,10 @@ make_token_ignore_last_char :: proc "contextless" (t: ^Tokenizer, kind: Token_Ki
 
 next_char :: proc "contextless" (t: ^Tokenizer) -> (char: rune, before_eof: bool) #optional_ok #no_bounds_check {
 	if t.offset_read >= len(t.src) {
-		t.char = -1
+		t.char = 0
 		t.offset_read = len(t.src)+1
 		t.last_width = 1
-		return -1, false
+		return 0, false
 	}
 
 	width: int
@@ -164,6 +164,53 @@ next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: b
 		case "extend":      token = make_token_ignore_last_char(t, .Extend)
 		case "schema":      token = make_token_ignore_last_char(t, .Schema)
 		case:               token = make_token_ignore_last_char(t, .Name)
+		}
+	// String
+	case '"':
+		escaping := false
+
+		if '"' == next_char(t) {
+			// Empty String
+			if '"' != next_char(t) {
+				return make_token_ignore_last_char(t, .String), true
+			}
+
+			// Block String
+			for {
+				switch next_char(t) {
+				case 0:
+					return make_token_ignore_last_char(t, .Invalid), true
+				case '\\':
+					escaping = !escaping
+				case '"':
+					if !escaping &&
+					   '"' == next_char(t) &&
+					   '"' == next_char(t)
+					{
+						return make_token(t, .String), true
+					}
+					escaping = false
+				case:
+					escaping = false
+				}
+			}
+		}
+
+		// String
+		for {
+			switch next_char(t) {
+			case 0, '\n':
+				return make_token_ignore_last_char(t, .Invalid), true
+			case '\\':
+				escaping = !escaping
+			case '"':
+				if !escaping {
+					return make_token(t, .String), true
+				}
+				escaping = false
+			case:
+				escaping = false
+			}
 		}
 	}
 
