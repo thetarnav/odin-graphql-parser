@@ -8,14 +8,14 @@ Schema :: struct {
 }
 
 Type :: struct {
-	kind          : Type_Kind,
-	name          : string,
-	fields        : []Field,       // Object and Interface
-	interfaces    : []Type,        // Object and Interface
-	possible_types: []Type,        // Interface and Union
-	enum_values   : []Enum_Value,  // Enum
-	input_fields  : []Input_Value, // Input
-	of_type       : ^Type,         // Non_Null and List
+	kind        : Type_Kind,
+	name        : string,
+	fields      : []Field,       // Object and Interface
+	interfaces  : []Type,        // Object and Interface
+	types       : []Type,        // Interface and Union
+	enum_values : []Enum_Value,  // Enum
+	input_fields: []Input_Value, // Input_Object
+	of_type     : ^Type,         // Non_Null and List
 }
 
 Type_Kind :: enum {
@@ -24,7 +24,7 @@ Type_Kind :: enum {
 	Interface,
 	Union,
 	Enum,
-	Input,
+	Input_Object,
 	List,
 	Non_Null,
 }
@@ -38,7 +38,7 @@ Field :: struct {
 Input_Value :: struct {
 	name   : string,
 	type   : Type,
-	default: string,
+	default: Maybe(string),
 }
 
 Enum_Value :: struct {
@@ -62,13 +62,13 @@ Enum_Value :: struct {
 // Object :: struct {
 // 	name      : string,
 // 	fields    : []Field,
-// 	interfaces: []Type,
+// 	interfaces: []Interface,
 // }
 // Interface :: struct {
 // 	name      : string,
 // 	fields    : []Field,
-// 	interfaces: []Type,
-// 	types     : []Type,
+// 	interfaces: []Interface,
+// 	types     : []Object, // List of Object types that implement this interface
 // }
 // Union :: struct {
 // 	name : string,
