@@ -48,7 +48,13 @@ Input_Value :: struct {
 	type: Type_Index,
 }
 
-schema_init :: proc(s: ^Schema, cap := 64, allocator := context.allocator) -> mem.Allocator_Error #no_bounds_check {
+DEFAULT_CAP :: 64
+
+schema_init :: proc(
+	s: ^Schema,
+	cap := DEFAULT_CAP,
+	allocator := context.allocator,
+) -> mem.Allocator_Error #no_bounds_check {
 	s.types  = make(type_of(s.types),  6, cap, allocator) or_return
 	s.fields = make(type_of(s.fields), 0, cap, allocator) or_return
 	s.inputs = make(type_of(s.inputs), 0, cap, allocator) or_return
@@ -61,7 +67,10 @@ schema_init :: proc(s: ^Schema, cap := 64, allocator := context.allocator) -> me
 	return nil
 }
 
-schema_make :: proc(cap := 64, allocator := context.allocator) -> (s: Schema, err: mem.Allocator_Error) #optional_allocator_error {
-	return s, schema_init(&s)
+schema_make :: proc(
+	cap := DEFAULT_CAP,
+	allocator := context.allocator,
+) -> (s: Schema, err: mem.Allocator_Error) #optional_allocator_error {
+	return s, schema_init(&s, cap, allocator)
 }
 make_schema :: schema_make
