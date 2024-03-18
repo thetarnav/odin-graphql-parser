@@ -395,8 +395,7 @@ test_tokenizer_cases :: proc(t: ^test.T) {
 			continue
 		}
 
-		tokenizer: Tokenizer
-		tokenizer_init(&tokenizer, test_case.src)
+		tokenizer := make_tokenizer(test_case.src)
 
 		for token in next_token(&tokenizer) {
 			append(&tokens, token)

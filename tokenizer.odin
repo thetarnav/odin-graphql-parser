@@ -70,21 +70,12 @@ tokenizer_init :: proc "contextless" (t: ^Tokenizer, src: string) {
 	}
 }
 
-@(private, require_results)
-make_token :: proc "contextless" (t: ^Tokenizer, kind: Token_Kind) -> (token: Token) #no_bounds_check {
-	token.kind = kind
-	token.value = t.src[t.offset_write : t.offset_read]
-	t.offset_write = t.offset_read
-	next_char(t)
+@(require_results)
+tokenizer_make :: proc "contextless" (src: string) -> (t: Tokenizer) {
+	tokenizer_init(&t, src)
 	return
 }
-@(private, require_results)
-make_token_ignore_last_char :: proc "contextless" (t: ^Tokenizer, kind: Token_Kind) -> (token: Token) #no_bounds_check {
-	token.kind = kind
-	token.value = t.src[t.offset_write : t.offset_read-t.last_width]
-	t.offset_write = t.offset_read-t.last_width
-	return
-}
+make_tokenizer :: tokenizer_make
 
 next_char :: proc "contextless" (t: ^Tokenizer) -> (char: rune, before_eof: bool) #optional_ok #no_bounds_check {
 	if t.offset_read >= len(t.src) {
@@ -103,6 +94,20 @@ next_char :: proc "contextless" (t: ^Tokenizer) -> (char: rune, before_eof: bool
 
 @(require_results)
 next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: bool) #optional_ok #no_bounds_check {
+
+	make_token :: proc "contextless" (t: ^Tokenizer, kind: Token_Kind) -> (token: Token) #no_bounds_check {
+		token.kind = kind
+		token.value = t.src[t.offset_write : t.offset_read]
+		t.offset_write = t.offset_read
+		next_char(t)
+		return
+	}
+	make_token_ignore_last_char :: proc "contextless" (t: ^Tokenizer, kind: Token_Kind) -> (token: Token) #no_bounds_check {
+		token.kind = kind
+		token.value = t.src[t.offset_write : t.offset_read-t.last_width]
+		t.offset_write = t.offset_read-t.last_width
+		return
+	}
 
 	if t.offset_read > len(t.src) {
 		return make_token(t, .EOF), false
@@ -233,53 +238,53 @@ next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: b
 		token = make_token(t, .Invalid)
 	}
 
-	return 
-}
-
-@(private, require_results)
-scan_number :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: bool) #optional_ok {
-	/*  e.g.
-	    123
-	    123.456
-	    0.123
-		0
+	/*
+	123
+	123.456
+	0.123
+	0
 	*/
-	scan_fraction :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: bool) #optional_ok {
-		switch next_char(t) {
-		case '0'..='9': // continue
-		case: return make_token_ignore_last_char(t, .Invalid), true
+	scan_number :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: bool) #optional_ok {
+		scan_fraction :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: bool) #optional_ok {
+			switch next_char(t) {
+			case '0'..='9': // continue
+			case: return make_token_ignore_last_char(t, .Invalid), true
+			}
+			for {
+				switch next_char(t) {
+				case '0'..='9': // continue
+				case 'a'..='z', 'A'..='Z', '_':
+					return make_token_ignore_last_char(t, .Invalid), true
+				case:
+					return make_token_ignore_last_char(t, .Float), true
+				}
+			}
 		}
+
+		if t.char == '0' {
+			switch next_char(t) {
+			case '.':
+				return scan_fraction(t)
+			case '0'..='9', 'a'..='z', 'A'..='Z', '_':
+				return make_token_ignore_last_char(t, .Invalid), true
+			case:
+				return make_token_ignore_last_char(t, .Int), true
+			}
+		}
+		
 		for {
 			switch next_char(t) {
 			case '0'..='9': // continue
+			case '.':
+				return scan_fraction(t)
 			case 'a'..='z', 'A'..='Z', '_':
 				return make_token_ignore_last_char(t, .Invalid), true
 			case:
-				return make_token_ignore_last_char(t, .Float), true
+				return make_token_ignore_last_char(t, .Int), true
 			}
 		}
 	}
 
-	if t.char == '0' {
-		switch next_char(t) {
-		case '.':
-			return scan_fraction(t)
-		case '0'..='9', 'a'..='z', 'A'..='Z', '_':
-			return make_token_ignore_last_char(t, .Invalid), true
-		case:
-			return make_token_ignore_last_char(t, .Int), true
-		}
-	}
-	
-	for {
-		switch next_char(t) {
-		case '0'..='9': // continue
-		case '.':
-			return scan_fraction(t)
-		case 'a'..='z', 'A'..='Z', '_':
-			return make_token_ignore_last_char(t, .Invalid), true
-		case:
-			return make_token_ignore_last_char(t, .Int), true
-		}
-	}
+	return 
 }
+tokenizer_next :: next_token

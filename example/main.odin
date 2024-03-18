@@ -42,8 +42,7 @@ main :: proc() {
 		fmt.panicf("error reading input: %d", err)
 	}
 
-	t: gql.Tokenizer
-	gql.tokenizer_init(&t, input_str)
+	t := gql.make_tokenizer(input_str)
 
 	for token in gql.next_token(&t) {
 		fmt.printf("\e[0;32m%s\e[0m %s\n", token.kind, token.value)
