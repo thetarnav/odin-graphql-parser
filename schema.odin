@@ -1,26 +1,32 @@
 package gql
 
+import "core:mem"
+
 Schema :: struct {
-	types       : []Type,
-	query       : Type_Name,
-	mutation    : Maybe(Type_Name),
-	subscription: Maybe(Type_Name),
+	types       : [dynamic]Type,
+	fields      : [dynamic]Field,
+	inputs      : [dynamic]Input_Value,
+	query       : Type_Index,
+	mutation    : Type_Index,
+	subscription: Type_Index,
 }
 
 Type :: struct {
-	kind        : Type_Kind,
-	name        : Type_Name,
-	types       : []Type_Name,   // Interface and Union
-	interfaces  : []Type_Name,   // Object and Interface
-	fields      : []Field,       // Object and Interface
-	enum_values : []string,      // Enum
-	input_fields: []Input_Value, // Input_Object
-	of_type     : Type_Name,     // Non_Null and List
+	kind       : Type_Kind,
+	name       : string,
+	types      : []Type_Index,  // Interface and Union
+	interfaces : []Type_Index,  // Object and Interface
+	fields     : []Field,       // Object and Interface
+	enum_values: []string,      // Enum
+	inputs     : []Input_Value, // Input_Object
+	of_type    : Type_Index,    // Non_Null and List
 }
 
-Type_Name :: distinct string
+// Index of the type in the `Schema.types` array
+Type_Index :: distinct int
 
 Type_Kind :: enum {
+	Unknown, // Zero case
 	Scalar,
 	Object,
 	Interface,
@@ -34,16 +40,28 @@ Type_Kind :: enum {
 Field :: struct {
 	name: string,
 	args: []Input_Value,
-	type: Type_Name,
+	type: Type_Index,
 }
 
 Input_Value :: struct {
-	name   : string,
-	type   : Type_Name,
+	name: string,
+	type: Type_Index,
 }
 
-scalar_string  := Type{kind = .Scalar, name = "String"}
-scalar_int     := Type{kind = .Scalar, name = "Int"}
-scalar_float   := Type{kind = .Scalar, name = "Float"}
-scalar_boolean := Type{kind = .Scalar, name = "Boolean"}
-scalar_id      := Type{kind = .Scalar, name = "ID"}
+schema_init :: proc(s: ^Schema, cap := 64, allocator := context.allocator) -> mem.Allocator_Error #no_bounds_check {
+	s.types  = make(type_of(s.types),  6, cap, allocator) or_return
+	s.fields = make(type_of(s.fields), 0, cap, allocator) or_return
+	s.inputs = make(type_of(s.inputs), 0, cap, allocator) or_return
+	s.types[0] = {}
+	s.types[1] = {kind = .Scalar, name = "String"}
+	s.types[2] = {kind = .Scalar, name = "Int"}
+	s.types[3] = {kind = .Scalar, name = "Float"}
+	s.types[4] = {kind = .Scalar, name = "Boolean"}
+	s.types[5] = {kind = .Scalar, name = "ID"}
+	return nil
+}
+
+schema_make :: proc(cap := 64, allocator := context.allocator) -> (s: Schema, err: mem.Allocator_Error) #optional_allocator_error {
+	return s, schema_init(&s)
+}
+make_schema :: schema_make
