@@ -18,9 +18,12 @@ Schema :: struct {
 	or `schema.types[6:]` to get types without built-in scalars.
 	*/
 	types       : [dynamic]Type,
-	query       : Type_Index,
-	mutation    : Type_Index,
-	subscription: Type_Index,
+	/*
+	Index of the current query, mutation and subscription types in the `Schema.types` array.
+	*/
+	query_idx       : int,
+	mutation_idx    : int,
+	subscription_idx: int,
 	/*
 	Allocator used to allocate memory for Types, Fields and Input_Values.
 	*/
@@ -30,16 +33,12 @@ Schema :: struct {
 Type :: struct {
 	kind       : Type_Kind,
 	name       : string,
-	types      : []Type_Index,  // Interface and Union
-	interfaces : []Type_Index,  // Object and Interface
+	types      : []Type_Value,  // Interface and Union
+	interfaces : []Type_Value,  // Object and Interface
 	fields     : []Field,       // Object and Interface
 	enum_values: []string,      // Enum
 	inputs     : []Input_Value, // Input_Object
-	of_type    : Type_Index,    // Non_Null and List
 }
-
-// Index of the type in the `Schema.types` array
-Type_Index :: distinct int
 
 Type_Kind :: enum {
 	Unknown, // Zero case
@@ -49,19 +48,40 @@ Type_Kind :: enum {
 	Union,
 	Enum,
 	Input_Object,
-	List,
-	Non_Null,
+}
+
+Type_Value :: struct {
+	/*
+	Index of the type in the `Schema.types` array
+	*/
+	index: int,
+	/*
+	Non_Null flags for the type and List wrappers
+
+	1st bit: 1 if the type is non-null
+	2nd bit: 1 if the 1st List wrapper is non-null
+	3rd bit: 1 if the 2nd List wrapper is non-null
+	...
+
+	e.g.
+	[[String]]!
+	non_null_flags = 0b00000100 // 2nd List wrapper is non-null
+	lists          = 2
+
+	*/
+	non_null_flags: u8,
+	lists: i8, // Number of List wrappers, MAX: 7
 }
 
 Field :: struct {
-	name: string,
-	args: []Input_Value,
-	type: Type_Index,
+	name : string,
+	args : []Input_Value,
+	value: Type_Value,
 }
 
 Input_Value :: struct {
-	name: string,
-	type: Type_Index,
+	name : string,
+	value: Type_Value,
 }
 
 USER_TYPES_START :: 6
@@ -109,12 +129,86 @@ schema_parse_string :: proc(
 	find_type :: proc(
 		s: ^Schema,
 		name: string,
-	) -> Type_Index {
-		for type, i in s.types {
-			if type.name == name do return Type_Index(i)
+	) -> (idx: int) {
+		for type, i in s.types[1:] {
+			if type.name == name {
+				return i
+			}
 		}
 		append(&s.types, Type{name = name})
-		return Type_Index(len(s.types) - 1)
+		return len(s.types) - 1
+	}
+
+	add_type :: proc(
+		s: ^Schema,
+		name: string,
+		kind: Type_Kind,
+	) -> (idx: int, err: Schema_Error) {
+		// Maybe the type is already in the list
+		// (Added by another type referencing it)
+		for &type, i in s.types[1:] {
+			if type.name != name do continue
+			if type.kind != .Unknown {
+				err = Error_Repeated_Type{name}
+			}
+			idx = i
+			type.kind = kind
+			return
+		}
+
+		// Append new
+		append(&s.types, Type{name = name, kind = kind})
+		idx = len(s.types) - 1
+		return
+	}
+
+	parse_type_value :: proc(
+		s: ^Schema,
+		t: ^Tokenizer,
+	) -> (token: Token, value: Type_Value, err: Schema_Error) {
+		
+		open_lists: uint = 0
+		for {
+			token = tokenizer_next(t)
+			#partial switch token.kind {
+			case .Name:
+				if value.index == 0 {
+					value.index = find_type(s, token.value)
+					break
+				}
+				if open_lists > 1 {
+					err = Error_Unexpected_Token{token}
+				}
+				return
+			case .Bracket_Left:
+				if value.index > 0 {
+					err = Error_Unexpected_Token{token}
+					return
+				}
+				value.lists += 1
+				open_lists  += 1
+			case .Bracket_Right:
+				if open_lists == 0 || value.index == 0 {
+					err = Error_Unexpected_Token{token}
+					return
+				}
+				open_lists -= 1
+			case .Exclamation:
+				if value.index == 0 || value.non_null_flags & 1 << open_lists != 0 {
+					err = Error_Unexpected_Token{token}
+					return
+				}
+				value.non_null_flags |= 1 << open_lists
+			case .Brace_Right, .Parenthesis_Right:
+				if open_lists > 0 || value.index == 0 {
+					err = Error_Unexpected_Token{token}
+				}
+				return
+			case:
+				err = Error_Unexpected_Token{token}
+				return
+			}
+		}
 	}
 	
 	t := tokenizer_make(src)
@@ -131,19 +225,7 @@ schema_parse_string :: proc(
 
 			#partial switch token.kind {
 			case .Name:
-				idx := USER_TYPES_START
-				type: ^Type
-				search: {
-					for ; idx < len(s.types); idx += 1 {
-						type = &s.types[idx]
-						if type.name != token.value do continue
-						if type.kind == .Unknown do break search
-						return Error_Repeated_Type{token.value}
-					}
-					idx += 1 // TODO append
-					type = &s.types[idx]
-					type.name = token.value
-				}
+				idx := add_type(s, token.value, .Object) or_return
 
 				token = tokenizer_next(&t)
 				if (token.kind != .Brace_Left) {
@@ -151,10 +233,11 @@ schema_parse_string :: proc(
 				}
 
 				fields := make([dynamic]Field, 0, 8, s.allocator) or_return
+				defer s.types[idx].fields = fields[:]
 
 				// Parse fields
+				token = tokenizer_next(&t)
 				for {
-					token = tokenizer_next(&t)
 					if (token.kind == .Brace_Right) do break
 
 					if (token.kind != .Name) {
@@ -163,11 +246,15 @@ schema_parse_string :: proc(
 
 					field := Field{name = token.value}
 
-					token = tokenizer_next(&t)
 					// Parse arguments
+					token = tokenizer_next(&t)
 					if (token.kind == .Parenthesis_Left) {
+
+						args := make([dynamic]Input_Value, 0, 4, s.allocator) or_return
+						defer field.args = args[:]
+
+						token = tokenizer_next(&t)
 						for {
-							token = tokenizer_next(&t)
 							if (token.kind == .Parenthesis_Right) do break
 
 							if (token.kind != .Name) {
@@ -181,34 +268,15 @@ schema_parse_string :: proc(
 								return Error_Unexpected_Token{token}
 							}
 
-							// Parse argument type
-							token = tokenizer_next(&t)
-							if (token.kind != .Name) {
-								return Error_Unexpected_Token{token}
-							}
-
-							arg.type = find_type(s, token.value)
-							if (arg.type == 0) {
-								return Error_Unexpected_Token{token}
-							}
-
-							field.args = append(fields.args, arg)
+							token, arg.value = parse_type_value(s, &t) or_return
+							append(&args, arg)
 						}
 					} else if (token.kind != .Colon) {
 						return Error_Unexpected_Token{token}
 					}
 
-					token = tokenizer_next(&t)
-					if (token.kind != .Name) {
-						return Error_Unexpected_Token{token}
-					}
-
-					field.type = find_type(s, token.value)
-					if (field.type == 0) {
-						return Error_Unexpected_Token{token}
-					}
-
-					fields = append(fields, field)
+					token, field.value = parse_type_value(s, &t) or_return
+					append(&fields, field)
 				}
 			}
 		case:
