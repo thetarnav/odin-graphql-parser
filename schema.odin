@@ -306,8 +306,10 @@ schema_parse_string :: proc(
 							case: return Error_Unexpected_Token{token}
 							}
 						}
-					case .Brace_Open: break interfaces_check
-					case: return Error_Unexpected_Token{token}
+					case .Brace_Open:
+						break interfaces_check
+					case:
+						return Error_Unexpected_Token{token}
 					}
 				}
 
@@ -318,40 +320,43 @@ schema_parse_string :: proc(
 				token = next_token(&t)
 				fields_loop: for {
 					#partial switch token.kind {
-					case .Name: // Parse field
-					case .Brace_Close: break fields_loop
-					case: return Error_Unexpected_Token{token}
-					}
-
-					field := Field{name = token.value}
-
-					token = next_token(&t)
-					#partial switch token.kind {
-					case .Colon: // No arguments
-					case .Paren_Open: // Parse arguments
-						args := make([dynamic]Input_Value, 0, 4, s.allocator) or_return
-						defer field.args = args[:]
+					case .Name:
+						field := Field{name = token.value}
 
 						token = next_token(&t)
-						args_loop: for {
-							#partial switch token.kind {
-							case .Name: // Parse arg
-							case .Paren_Close: break args_loop
-							case: return Error_Unexpected_Token{token}
+						#partial switch token.kind {
+						case .Colon: // No arguments
+						case .Paren_Open: // Parse arguments
+							args := make([dynamic]Input_Value, 0, 4, s.allocator) or_return
+							defer field.args = args[:]
+
+							token = next_token(&t)
+							args_loop: for {
+								#partial switch token.kind {
+								case .Name:
+									arg := Input_Value{name = token.value}
+
+									token = next_token_expect(&t, .Colon) or_return
+
+									token, arg.type = parse_type_value(s, &t) or_return
+									append(&args, arg)
+								case .Paren_Close:
+									break args_loop
+								case:
+									return Error_Unexpected_Token{token}
+								}
 							}
-
-							arg := Input_Value{name = token.value}
-
-							token = next_token_expect(&t, .Colon) or_return
-
-							token, arg.type = parse_type_value(s, &t) or_return
-							append(&args, arg)
+						case:
+							return Error_Unexpected_Token{token}
 						}
-					case: return Error_Unexpected_Token{token}
-					}
 
-					token, field.type = parse_type_value(s, &t) or_return
-					append(&fields, field)
+						token, field.type = parse_type_value(s, &t) or_return
+						append(&fields, field)
+					case .Brace_Close:
+						break fields_loop
+					case:
+						return Error_Unexpected_Token{token}
+					}
 				}
 			case .Input:
 				token = next_token_expect(&t, .Name) or_return
@@ -366,17 +371,18 @@ schema_parse_string :: proc(
 				token = next_token(&t)
 				input_fields_loop: for {
 					#partial switch token.kind {
-					case .Name: // PArse field
-					case .Brace_Close: break input_fields_loop
-					case: return Error_Unexpected_Token{token}
+					case .Name:
+						field := Field{name = token.value}
+
+						token = next_token_expect(&t, .Colon) or_return
+
+						token, field.type = parse_type_value(s, &t) or_return
+						append(&fields, field)
+					case .Brace_Close:
+						break input_fields_loop
+					case:
+						return Error_Unexpected_Token{token}
 					}
-
-					field := Field{name = token.value}
-
-					token = next_token_expect(&t, .Colon) or_return
-
-					token, field.type = parse_type_value(s, &t) or_return
-					append(&fields, field)
 				}
 			case .Enum:
 				token = next_token_expect(&t, .Name) or_return
