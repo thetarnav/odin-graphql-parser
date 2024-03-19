@@ -43,7 +43,7 @@ test_schema :: proc(t: ^test.T) {
 
 	if err != nil {
 		switch e in err {
-			case Error_Unexpected_Token:
+			case Unexpected_Token_Error:
 				fmt.printfln("unexpected token %v: %s", e.token.kind, e.token.value)
 
 				token_pos := int(uintptr(raw_data(e.token.value)) - uintptr(raw_data(schema_src)))
@@ -78,7 +78,7 @@ test_schema :: proc(t: ^test.T) {
 				fmt.printf("%*s", len(e.token.value), "^")
 				fmt.println()
 
-			case Error_Repeated_Type:
+			case Repeated_Type_Error:
 				fmt.printfln("repeated type: %v", e.name)
 			case Allocator_Error:
 				fmt.printfln("allocator error: %v", e)
