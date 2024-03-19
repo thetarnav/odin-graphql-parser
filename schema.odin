@@ -73,14 +73,14 @@ Type_Value :: struct {
 }
 
 Field :: struct {
-	name : string,
-	args : []Input_Value,
-	value: Type_Value,
+	name: string,
+	args: []Input_Value,
+	type: Type_Value,
 }
 
 Input_Value :: struct {
-	name : string,
-	value: Type_Value,
+	name: string,
+	type: Type_Value,
 }
 
 USER_TYPES_START :: 6
@@ -268,9 +268,9 @@ schema_parse_string :: proc(
 					token = next_token_expect(&t, .Name) or_return
 
 					#partial switch match_keyword(field_token.value) {
-					case .Query:        s.query        = find_type(s, field_token.value)
-					case .Mutation:     s.mutation     = find_type(s, field_token.value)
-					case .Subscription: s.subscription = find_type(s, field_token.value)
+					case .Query:        s.query        = find_type(s, token.value)
+					case .Mutation:     s.mutation     = find_type(s, token.value)
+					case .Subscription: s.subscription = find_type(s, token.value)
 					case:
 						return Error_Unexpected_Token{field_token}
 					}
@@ -287,26 +287,28 @@ schema_parse_string :: proc(
 				idx  := add_type(s, token.value, kind) or_return
 
 				// Parse interfaces
-				token = next_token(&t)
-				#partial switch token.kind {
-				case .Name:
-					if match_keyword(token.value) != .Implements {
-						return Error_Unexpected_Token{token}
-					}
-
-					interfaces := make([dynamic]int, 0, 4, s.allocator) or_return
-					defer s.types[idx].interfaces = interfaces[:]
-
-					interfaces_loop: for {
-						token = next_token(&t)
-						#partial switch token.kind {
-						case .Name: append(&interfaces, find_type(s, token.value))
-						case .Brace_Open: break interfaces_loop
-						case: return Error_Unexpected_Token{token}
+				interfaces_check: {
+					token = next_token(&t)
+					#partial switch token.kind {
+					case .Name:
+						if match_keyword(token.value) != .Implements {
+							return Error_Unexpected_Token{token}
 						}
+	
+						interfaces := make([dynamic]int, 0, 4, s.allocator) or_return
+						defer s.types[idx].interfaces = interfaces[:]
+	
+						for {
+							token = next_token(&t)
+							#partial switch token.kind {
+							case .Name: append(&interfaces, find_type(s, token.value))
+							case .Brace_Open: break interfaces_check
+							case: return Error_Unexpected_Token{token}
+							}
+						}
+					case .Brace_Open: break interfaces_check
+					case: return Error_Unexpected_Token{token}
 					}
-				case .Brace_Open: // No interfaces
-				case: return Error_Unexpected_Token{token}
 				}
 
 				fields := make([dynamic]Field, 0, 8, s.allocator) or_return
@@ -316,7 +318,7 @@ schema_parse_string :: proc(
 				token = next_token(&t)
 				fields_loop: for {
 					#partial switch token.kind {
-					case .Name: // PArse field
+					case .Name: // Parse field
 					case .Brace_Close: break fields_loop
 					case: return Error_Unexpected_Token{token}
 					}
@@ -342,13 +344,13 @@ schema_parse_string :: proc(
 
 							token = next_token_expect(&t, .Colon) or_return
 
-							token, arg.value = parse_type_value(s, &t) or_return
+							token, arg.type = parse_type_value(s, &t) or_return
 							append(&args, arg)
 						}
 					case: return Error_Unexpected_Token{token}
 					}
 
-					token, field.value = parse_type_value(s, &t) or_return
+					token, field.type = parse_type_value(s, &t) or_return
 					append(&fields, field)
 				}
 			case .Input:
@@ -373,7 +375,7 @@ schema_parse_string :: proc(
 
 					token = next_token_expect(&t, .Colon) or_return
 
-					token, field.value = parse_type_value(s, &t) or_return
+					token, field.type = parse_type_value(s, &t) or_return
 					append(&fields, field)
 				}
 			case .Enum:
