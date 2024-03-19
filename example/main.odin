@@ -42,9 +42,29 @@ main :: proc() {
 		fmt.panicf("error reading input: %d", err)
 	}
 
-	t := gql.make_tokenizer(input_str)
+	// example_tokenizer(input_str)
+	example_parser(input_str)
+}
+
+example_tokenizer :: proc(input: string) {
+	t := gql.make_tokenizer(input)
 
 	for token in gql.next_token(&t) {
 		fmt.printf("\e[0;32m%s\e[0m %s\n", token.kind, token.value)
 	}
+}
+
+example_parser :: proc(input: string) {
+	schema := gql.schema_make()
+	err := gql.schema_parse(&schema, input)
+    defer gql.schema_delete(schema)
+
+    if err != nil {
+        fmt.printfln("Error parsing schema: %v", err)
+        return
+    }
+
+    for type in schema.types {
+        fmt.printfln("Type: %s", type.name)
+    }
 }
