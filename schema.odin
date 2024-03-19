@@ -358,6 +358,8 @@ schema_parse :: proc(
 									return Unexpected_Token_Error{token}
 								}
 							}
+
+							token = next_token_expect(&t, .Colon) or_return
 						case:
 							return Unexpected_Token_Error{token}
 						}
@@ -449,7 +451,7 @@ schema_parse :: proc(
 			return Unexpected_Token_Error{token}
 		}
 	}
-	
+
 	shrink(&s.types)
 	return
 }

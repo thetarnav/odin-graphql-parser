@@ -21,7 +21,7 @@ type Test implements Node {
 
 type Item implements Node {
 	name: String
-	color: Color
+	color(url: String!): Color
 }
 
 interface Node {
@@ -51,7 +51,7 @@ test_schema :: proc(t: ^test.T) {
 				start := token_pos
 				end   := token_pos
 
-				for start > 0 && token_pos - start < 20 {
+				for start > 0 && token_pos - start < 40 {
 					if schema_src[start] == '\t' {
 						start_width += 7
 					}
@@ -63,7 +63,7 @@ test_schema :: proc(t: ^test.T) {
 					start_width += 1
 					start -= 1
 				}
-				for i := 0; i < 20; i += 1 {
+				for i := 0; i < 40; i += 1 {
 					if end < len(schema_src) {
 						if schema_src[end] == '\n' {
 							break
@@ -147,6 +147,15 @@ test_schema :: proc(t: ^test.T) {
 				},
 				{
 					name = "color",
+					args = {
+						{
+							name = "url",
+							type = {
+								index = 1,
+								non_null_flags = 0b00000001,
+							},
+						},
+					},
 					type = {
 						index = USER_TYPES_START + 4,
 					},
@@ -173,6 +182,14 @@ test_schema :: proc(t: ^test.T) {
 			expect_value_name(t, field.type.index, expected_field.type.index, "field type index")
 			test.expectf(t, field.type.non_null_flags == expected_field.type.non_null_flags, "field type flags expected %b, got %b", expected_field.type.non_null_flags, field.type.non_null_flags)
 			expect_value_name(t, field.type.lists, expected_field.type.lists, "field type lists")
+
+			expect_value_name(t, len(field.args), len(expected_field.args), "args")
+			for arg, k in field.args {
+				expected_arg := expected_field.args[k]
+				expect_value_name(t, arg.name, expected_arg.name, "arg name")
+				expect_value_name(t, arg.type.index, expected_arg.type.index, "arg type index")
+				test.expectf(t, arg.type.non_null_flags == expected_arg.type.non_null_flags, "arg type flags expected %b, got %b", expected_arg.type.non_null_flags, arg.type.non_null_flags)
+			}
 		}
 
 		expect_value_name(t, len(type.interfaces), len(expected.interfaces), "interfaces")
