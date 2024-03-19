@@ -1,5 +1,6 @@
 # Build aftifacts
 /odin-graphql-parser
+/odin-grapql-parser
 /example/example
 
 # OLS config

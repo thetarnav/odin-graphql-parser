@@ -42,7 +42,7 @@ schema_src := #load("schema.gql", string)
 
 main :: proc() {
     schema := schema_make()
-	err := schema_parse_string(&schema, schema_src)
+	err := schema_parse(&schema, schema_src)
 
     if err != nil {
         fmt.printfln("Error parsing schema: %v", err)

@@ -33,10 +33,10 @@ Schema :: struct {
 Type :: struct {
 	kind       : Type_Kind,
 	name       : string,
-	interfaces : []int,         // Object and Interface (Index to `Schema.types`)
-	fields     : []Field,       // Object and Interface and Input_Object
-	members    : []int,         // Union (Index to `Schema.types`)
-	enum_values: []string,      // Enum
+	interfaces : []int,    // Object and Interface (Index to `Schema.types`)
+	fields     : []Field,  // Object and Interface and Input_Object
+	members    : []int,    // Union (Index to `Schema.types`)
+	enum_values: []string, // Enum
 }
 
 Type_Kind :: enum {
@@ -121,24 +121,25 @@ Schema_Error :: union {
 	Allocator_Error,
 }
 
-schema_parse_string :: proc(
+schema_parse :: proc(
 	s: ^Schema,
 	src: string,
 ) -> (err: Schema_Error) #no_bounds_check {
 
+	@(require_results)
 	find_type :: proc(
 		s: ^Schema,
 		name: string,
-	) -> (idx: int) {
+	) -> (idx: int, err: Schema_Error) {
 		for type, i in s.types[1:] {
 			if type.name == name {
-				return i+1
+				return i+1, nil
 			}
 		}
-		append(&s.types, Type{name = name})
-		return len(s.types) - 1
+		append(&s.types, Type{name = name}) or_return
+		return len(s.types) - 1, nil
 	}
-
+	@(require_results)
 	add_type :: proc(
 		s: ^Schema,
 		name: string,
@@ -157,11 +158,11 @@ schema_parse_string :: proc(
 		}
 
 		// Append new
-		append(&s.types, Type{name = name, kind = kind})
+		append(&s.types, Type{name = name, kind = kind}) or_return
 		idx = len(s.types) - 1
 		return
 	}
-
+	@(require_results)
 	parse_type_value :: proc(
 		s: ^Schema,
 		t: ^Tokenizer,
@@ -173,7 +174,7 @@ schema_parse_string :: proc(
 			#partial switch token.kind {
 			case .Name:
 				if value.index == 0 {
-					value.index = find_type(s, token.value)
+					value.index = find_type(s, token.value) or_return
 					break
 				}
 				if open_lists > 1 {
@@ -210,7 +211,7 @@ schema_parse_string :: proc(
 			}
 		}
 	}
-
+	@(require_results)
 	next_token :: #force_inline proc(
 		t: ^Tokenizer,
 	) -> (token: Token) {
@@ -225,6 +226,7 @@ schema_parse_string :: proc(
 			}
 		}
 	}
+	@(require_results)
 	next_token_expect :: #force_inline proc(
 		t: ^Tokenizer,
 		expected: Token_Kind,
@@ -269,9 +271,9 @@ schema_parse_string :: proc(
 					token = next_token_expect(&t, .Name) or_return
 
 					#partial switch match_keyword(field_token.value) {
-					case .Query:        s.query        = find_type(s, token.value)
-					case .Mutation:     s.mutation     = find_type(s, token.value)
-					case .Subscription: s.subscription = find_type(s, token.value)
+					case .Query:        s.query        = find_type(s, token.value) or_return
+					case .Mutation:     s.mutation     = find_type(s, token.value) or_return
+					case .Subscription: s.subscription = find_type(s, token.value) or_return
 					case:
 						return Error_Unexpected_Token{field_token}
 					}
@@ -295,16 +297,20 @@ schema_parse_string :: proc(
 						if match_keyword(token.value) != .Implements {
 							return Error_Unexpected_Token{token}
 						}
-	
+
 						interfaces := make([dynamic]int, 0, 4, s.allocator) or_return
 						defer s.types[idx].interfaces = interfaces[:]
-	
+
 						for {
 							token = next_token(&t)
 							#partial switch token.kind {
-							case .Name: append(&interfaces, find_type(s, token.value))
-							case .Brace_Open: break interfaces_check
-							case: return Error_Unexpected_Token{token}
+							case .Name:
+								interface := find_type(s, token.value) or_return
+								append(&interfaces, interface) or_return
+							case .Brace_Open:
+								break interfaces_check
+							case:
+								return Error_Unexpected_Token{token}
 							}
 						}
 					case .Brace_Open:
@@ -342,7 +348,7 @@ schema_parse_string :: proc(
 									token = next_token_expect(&t, .Colon) or_return
 
 									token, arg.type = parse_type_value(s, &t) or_return
-									append(&args, arg)
+									append(&args, arg) or_return
 								case .Paren_Close:
 									break args_loop
 								case:
@@ -354,7 +360,7 @@ schema_parse_string :: proc(
 						}
 
 						token, field.type = parse_type_value(s, &t) or_return
-						append(&fields, field)
+						append(&fields, field) or_return
 					case .Brace_Close:
 						break fields_loop
 					case:
@@ -380,7 +386,7 @@ schema_parse_string :: proc(
 						token = next_token_expect(&t, .Colon) or_return
 
 						token, field.type = parse_type_value(s, &t) or_return
-						append(&fields, field)
+						append(&fields, field) or_return
 					case .Brace_Close:
 						break input_fields_loop
 					case:
@@ -401,7 +407,7 @@ schema_parse_string :: proc(
 					token = next_token(&t)
 					#partial switch token.kind {
 					case .Name:
-						append(&enum_values, token.value)
+						append(&enum_values, token.value) or_return
 					case .Brace_Close:
 						break enum_values_loop
 					case:
@@ -422,7 +428,8 @@ schema_parse_string :: proc(
 					token = next_token(&t)
 					#partial switch token.kind {
 					case .Name:
-						append(&members, find_type(s, token.value))
+						member := find_type(s, token.value) or_return
+						append(&members, member) or_return
 					case .Brace_Close:
 						break members_loop
 					case:

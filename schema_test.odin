@@ -38,7 +38,7 @@ enum Color {
 @(test)
 test_schema :: proc(t: ^test.T) {
 	schema := schema_make()
-	err := schema_parse_string(&schema, schema_src)
+	err := schema_parse(&schema, schema_src)
 
 	if err != nil {
 		switch e in err {
@@ -76,7 +76,7 @@ test_schema :: proc(t: ^test.T) {
 				fmt.printf("%*s", start_width, "")
 				fmt.printf("%*s", len(e.token.value), "^")
 				fmt.println()
-				
+
 			case Error_Repeated_Type:
 				fmt.printfln("repeated type: %v", e.name)
 			case Allocator_Error:
@@ -164,7 +164,7 @@ test_schema :: proc(t: ^test.T) {
 		expected := expected_types[i]
 		expect_value_name(t, type.name, expected.name, "name")
 		expect_value_name(t, type.kind, expected.kind, "kind")
-		
+
 		expect_value_name(t, len(type.fields), len(expected.fields), "fields")
 		for field, j in type.fields {
 			expected_field := expected.fields[j]
