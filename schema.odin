@@ -108,16 +108,16 @@ schema_make :: proc(
 }
 make_schema :: schema_make
 
-Error_Unexpected_Token :: struct {
+Unexpected_Token_Error :: struct {
 	token: Token,
 }
-Error_Repeated_Type :: struct {
+Repeated_Type_Error :: struct {
 	name: string,
 }
 Allocator_Error :: mem.Allocator_Error
 Schema_Error :: union {
-	Error_Unexpected_Token,
-	Error_Repeated_Type,
+	Unexpected_Token_Error,
+	Repeated_Type_Error,
 	Allocator_Error,
 }
 
@@ -130,7 +130,7 @@ schema_parse :: proc(
 	find_type :: proc(
 		s: ^Schema,
 		name: string,
-	) -> (idx: int, err: Schema_Error) {
+	) -> (idx: int, err: Schema_Error) #no_bounds_check {
 		for type, i in s.types[1:] {
 			if type.name == name {
 				return i+1, nil
@@ -144,13 +144,13 @@ schema_parse :: proc(
 		s: ^Schema,
 		name: string,
 		kind: Type_Kind,
-	) -> (idx: int, err: Schema_Error) {
+	) -> (idx: int, err: Schema_Error) #no_bounds_check {
 		// Maybe the type is already in the list
 		// (Added by another type referencing it)
 		for &type, i in s.types[1:] {
 			if type.name != name do continue
 			if type.kind != .Unknown {
-				err = Error_Repeated_Type{name}
+				err = Repeated_Type_Error{name}
 			}
 			idx = i+1
 			type.kind = kind
@@ -178,35 +178,35 @@ schema_parse :: proc(
 					break
 				}
 				if open_lists > 1 {
-					err = Error_Unexpected_Token{token}
+					err = Unexpected_Token_Error{token}
 				}
 				return
 			case .Bracket_Open:
 				if value.index > 0 {
-					err = Error_Unexpected_Token{token}
+					err = Unexpected_Token_Error{token}
 					return
 				}
 				open_lists += 1
 			case .Bracket_Close:
 				if open_lists == 0 || value.index == 0 {
-					err = Error_Unexpected_Token{token}
+					err = Unexpected_Token_Error{token}
 					return
 				}
 				open_lists  -= 1
 				value.lists += 1
 			case .Exclamation:
 				if value.index == 0 || value.non_null_flags & 1 << value.lists != 0 {
-					err = Error_Unexpected_Token{token}
+					err = Unexpected_Token_Error{token}
 					return
 				}
 				value.non_null_flags |= 1 << value.lists
 			case .Brace_Close, .Paren_Close:
 				if open_lists > 0 || value.index == 0 {
-					err = Error_Unexpected_Token{token}
+					err = Unexpected_Token_Error{token}
 				}
 				return
 			case:
-				err = Error_Unexpected_Token{token}
+				err = Unexpected_Token_Error{token}
 				return
 			}
 		}
@@ -240,7 +240,7 @@ schema_parse :: proc(
 			case expected:
 				return
 			case:
-				err = Error_Unexpected_Token{token}
+				err = Unexpected_Token_Error{token}
 				return
 			}
 		}
@@ -275,7 +275,7 @@ schema_parse :: proc(
 					case .Mutation:     s.mutation     = find_type(s, token.value) or_return
 					case .Subscription: s.subscription = find_type(s, token.value) or_return
 					case:
-						return Error_Unexpected_Token{field_token}
+						return Unexpected_Token_Error{field_token}
 					}
 				}
 			case .Type, .Interface:
@@ -295,7 +295,7 @@ schema_parse :: proc(
 					#partial switch token.kind {
 					case .Name:
 						if match_keyword(token.value) != .Implements {
-							return Error_Unexpected_Token{token}
+							return Unexpected_Token_Error{token}
 						}
 
 						interfaces := make([dynamic]int, 0, 4, s.allocator) or_return
@@ -310,13 +310,13 @@ schema_parse :: proc(
 							case .Brace_Open:
 								break interfaces_check
 							case:
-								return Error_Unexpected_Token{token}
+								return Unexpected_Token_Error{token}
 							}
 						}
 					case .Brace_Open:
 						break interfaces_check
 					case:
-						return Error_Unexpected_Token{token}
+						return Unexpected_Token_Error{token}
 					}
 				}
 
@@ -352,11 +352,11 @@ schema_parse :: proc(
 								case .Paren_Close:
 									break args_loop
 								case:
-									return Error_Unexpected_Token{token}
+									return Unexpected_Token_Error{token}
 								}
 							}
 						case:
-							return Error_Unexpected_Token{token}
+							return Unexpected_Token_Error{token}
 						}
 
 						token, field.type = parse_type_value(s, &t) or_return
@@ -364,7 +364,7 @@ schema_parse :: proc(
 					case .Brace_Close:
 						break fields_loop
 					case:
-						return Error_Unexpected_Token{token}
+						return Unexpected_Token_Error{token}
 					}
 				}
 			case .Input:
@@ -390,7 +390,7 @@ schema_parse :: proc(
 					case .Brace_Close:
 						break input_fields_loop
 					case:
-						return Error_Unexpected_Token{token}
+						return Unexpected_Token_Error{token}
 					}
 				}
 			case .Enum:
@@ -411,7 +411,7 @@ schema_parse :: proc(
 					case .Brace_Close:
 						break enum_values_loop
 					case:
-						return Error_Unexpected_Token{token}
+						return Unexpected_Token_Error{token}
 					}
 				}
 			case .Union:
@@ -433,21 +433,21 @@ schema_parse :: proc(
 					case .Brace_Close:
 						break members_loop
 					case:
-						return Error_Unexpected_Token{token}
+						return Unexpected_Token_Error{token}
 					}
 				}
 			case:
-				return Error_Unexpected_Token{token}
+				return Unexpected_Token_Error{token}
 			}
 		case:
-			return Error_Unexpected_Token{token}
+			return Unexpected_Token_Error{token}
 		}
 	}
 
 	return
 }
 
-schema_delete :: proc(s: Schema) {
+schema_delete :: proc(s: Schema) #no_bounds_check {
 	for type in s.types[USER_TYPES_START:] {
 		delete(type.fields)
 		delete(type.interfaces)
