@@ -11,12 +11,12 @@ Token_Kind :: enum {
 	Invalid,
 	EOF,
 	// Punctuators
-	Parenthesis_Left,
-	Parenthesis_Right,
-	Bracket_Left,
-	Bracket_Right,
-	Brace_Left,
-	Brace_Right,
+	Paren_Open,
+	Paren_Close,
+	Bracket_Open,
+	Bracket_Close,
+	Brace_Open,
+	Brace_Close,
 	Colon,
 	Equals,
 	At,
@@ -135,12 +135,12 @@ next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: b
 			}
 		}
 	// Punctuators
-	case '(': token = make_token(t, .Parenthesis_Left)
-	case ')': token = make_token(t, .Parenthesis_Right)
-	case '[': token = make_token(t, .Bracket_Left)
-	case ']': token = make_token(t, .Bracket_Right)
-	case '{': token = make_token(t, .Brace_Left)
-	case '}': token = make_token(t, .Brace_Right)
+	case '(': token = make_token(t, .Paren_Open)
+	case ')': token = make_token(t, .Paren_Close)
+	case '[': token = make_token(t, .Bracket_Open)
+	case ']': token = make_token(t, .Bracket_Close)
+	case '{': token = make_token(t, .Brace_Open)
+	case '}': token = make_token(t, .Brace_Close)
 	case ':': token = make_token(t, .Colon)
 	case '=': token = make_token(t, .Equals)
 	case '@': token = make_token(t, .At,)
@@ -254,7 +254,7 @@ next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: b
 				return make_token_ignore_last_char(t, .Int), true
 			}
 		}
-		
+
 		for {
 			switch next_char(t) {
 			case '0'..='9': // continue
@@ -268,15 +268,12 @@ next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: b
 		}
 	}
 
-	return 
+	return
 }
 tokenizer_next :: next_token
 
 @(require_results)
-match_keyword :: proc(
-	t: ^Tokenizer,
-	str: string,
-) -> Keyword {
+match_keyword :: proc(str: string) -> Keyword {
 	switch str {
 	case "query":       return .Query
 	case "mutation":    return .Mutation

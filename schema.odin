@@ -33,8 +33,8 @@ Schema :: struct {
 Type :: struct {
 	kind       : Type_Kind,
 	name       : string,
-	types      : []Type_Value,  // Interface and Union
-	interfaces : []Type_Value,  // Object and Interface
+	types      : []int,         // Interface and Union
+	interfaces : []int,         // Object and Interface
 	fields     : []Field,       // Object and Interface
 	enum_values: []string,      // Enum
 	inputs     : []Input_Value, // Input_Object
@@ -166,7 +166,7 @@ schema_parse_string :: proc(
 		s: ^Schema,
 		t: ^Tokenizer,
 	) -> (token: Token, value: Type_Value, err: Schema_Error) {
-		
+
 		open_lists: uint = 0
 		for {
 			token = tokenizer_next(t)
@@ -180,14 +180,14 @@ schema_parse_string :: proc(
 					err = Error_Unexpected_Token{token}
 				}
 				return
-			case .Bracket_Left:
+			case .Bracket_Open:
 				if value.index > 0 {
 					err = Error_Unexpected_Token{token}
 					return
 				}
 				value.lists += 1
 				open_lists  += 1
-			case .Bracket_Right:
+			case .Bracket_Close:
 				if open_lists == 0 || value.index == 0 {
 					err = Error_Unexpected_Token{token}
 					return
@@ -199,7 +199,7 @@ schema_parse_string :: proc(
 					return
 				}
 				value.non_null_flags |= 1 << open_lists
-			case .Brace_Right, .Parenthesis_Right:
+			case .Brace_Close, .Paren_Close:
 				if open_lists > 0 || value.index == 0 {
 					err = Error_Unexpected_Token{token}
 				}
@@ -210,74 +210,220 @@ schema_parse_string :: proc(
 			}
 		}
 	}
-	
-	t := tokenizer_make(src)
-	for {
-		token := tokenizer_next(&t) or_break
 
+	next_token :: #force_inline proc(
+		t: ^Tokenizer,
+	) -> (token: Token) {
+		token = tokenizer_next(t)
+		for {
+			#partial switch token.kind {
+			// Ignore string comments
+			case .String, .String_Block:
+				token = tokenizer_next(t)
+			case:
+				return
+			}
+		}
+	}
+	next_token_expect :: #force_inline proc(
+		t: ^Tokenizer,
+		expected: Token_Kind,
+	) -> (token: Token, err: Schema_Error) {
+		token = tokenizer_next(t)
+		for {
+			#partial switch token.kind {
+			// Ignore string comments
+			case .String, .String_Block:
+				token = tokenizer_next(t)
+			case expected:
+				return
+			case:
+				err = Error_Unexpected_Token{token}
+				return
+			}
+		}
+	}
+
+	t := tokenizer_make(src)
+	token: Token
+
+	top_level_loop: for {
+		token = next_token(&t)
+		
 		#partial switch token.kind {
-		// Ignore string comments
-		case .String, .String_Block:
-			continue
+		case .EOF: break top_level_loop
 		// Type Object
 		case .Name:
-			token = tokenizer_next(&t)
+			keyword := match_keyword(token.value)
+			#partial switch keyword {
+			case .Schema:
+				token = next_token_expect(&t, .Brace_Open) or_return
 
-			#partial switch token.kind {
-			case .Name:
-				idx := add_type(s, token.value, .Object) or_return
+				// Parse schema fields
+				for {
+					token = next_token(&t)
+					if (token.kind == .Brace_Close) do break
 
-				token = tokenizer_next(&t)
-				if (token.kind != .Brace_Left) {
-					return Error_Unexpected_Token{token}
+					field_token := token
+					token = next_token_expect(&t, .Colon) or_return
+					token = next_token_expect(&t, .Name) or_return
+
+					#partial switch match_keyword(field_token.value) {
+					case .Query:
+						s.query_idx        = find_type(s, field_token.value)
+					case .Mutation:
+						s.mutation_idx     = find_type(s, field_token.value)
+					case .Subscription:
+						s.subscription_idx = find_type(s, field_token.value)
+					case:
+						return Error_Unexpected_Token{field_token}
+					}
+				}
+			case .Type, .Interface:
+				token = next_token_expect(&t, .Name) or_return
+
+				kind: Type_Kind
+				#partial switch keyword {
+				case .Type:      kind = .Object
+				case .Interface: kind = .Interface
+				}
+
+				idx  := add_type(s, token.value, kind) or_return
+
+				// Parse interfaces
+				token = next_token(&t)
+				#partial switch token.kind {
+				case .Name:
+					if match_keyword(token.value) != .Implements {
+						return Error_Unexpected_Token{token}
+					}
+
+					interfaces := make([dynamic]int, 0, 4, s.allocator) or_return
+					defer s.types[idx].interfaces = interfaces[:]
+
+					interfaces_loop: for {
+						token = next_token(&t)
+						#partial switch token.kind {
+						case .Name: append(&interfaces, find_type(s, token.value))
+						case .Brace_Open: break interfaces_loop
+						case: return Error_Unexpected_Token{token}
+						}
+					}
+				case .Brace_Open: // No interfaces
+				case: return Error_Unexpected_Token{token}
 				}
 
 				fields := make([dynamic]Field, 0, 8, s.allocator) or_return
 				defer s.types[idx].fields = fields[:]
 
 				// Parse fields
-				token = tokenizer_next(&t)
-				for {
-					if (token.kind == .Brace_Right) do break
-
-					if (token.kind != .Name) {
-						return Error_Unexpected_Token{token}
+				token = next_token(&t)
+				fields_loop: for {
+					#partial switch token.kind {
+					case .Name: // PArse field
+					case .Brace_Close: break fields_loop
+					case: return Error_Unexpected_Token{token}
 					}
 
 					field := Field{name = token.value}
 
-					// Parse arguments
-					token = tokenizer_next(&t)
-					if (token.kind == .Parenthesis_Left) {
-
+					token = next_token(&t)
+					#partial switch token.kind {
+					case .Colon: // No arguments
+					case .Paren_Open: // Parse arguments
 						args := make([dynamic]Input_Value, 0, 4, s.allocator) or_return
 						defer field.args = args[:]
 
-						token = tokenizer_next(&t)
-						for {
-							if (token.kind == .Parenthesis_Right) do break
-
-							if (token.kind != .Name) {
-								return Error_Unexpected_Token{token}
+						token = next_token(&t)
+						args_loop: for {
+							#partial switch token.kind {
+							case .Name: // Parse arg
+							case .Paren_Close: break args_loop
+							case: return Error_Unexpected_Token{token}
 							}
 
 							arg := Input_Value{name = token.value}
 
-							token = tokenizer_next(&t)
-							if (token.kind != .Colon) {
-								return Error_Unexpected_Token{token}
-							}
+							token = next_token_expect(&t, .Colon) or_return
 
 							token, arg.value = parse_type_value(s, &t) or_return
 							append(&args, arg)
 						}
-					} else if (token.kind != .Colon) {
-						return Error_Unexpected_Token{token}
+					case: return Error_Unexpected_Token{token}
 					}
 
 					token, field.value = parse_type_value(s, &t) or_return
 					append(&fields, field)
 				}
+			case .Input:
+				token = next_token_expect(&t, .Name) or_return
+				idx  := add_type(s, token.value, .Object) or_return
+
+				token = next_token_expect(&t, .Brace_Open) or_return
+
+				fields := make([dynamic]Field, 0, 8, s.allocator) or_return
+				defer s.types[idx].fields = fields[:]
+
+				// Parse fields
+				token = next_token(&t)
+				input_fields_loop: for {
+					#partial switch token.kind {
+					case .Name: // PArse field
+					case .Brace_Close: break input_fields_loop
+					case: return Error_Unexpected_Token{token}
+					}
+
+					field := Field{name = token.value}
+
+					token = next_token_expect(&t, .Colon) or_return
+
+					token, field.value = parse_type_value(s, &t) or_return
+					append(&fields, field)
+				}
+			case .Enum:
+				token = next_token_expect(&t, .Name) or_return
+				idx  := add_type(s, token.value, .Enum) or_return
+
+				token = next_token_expect(&t, .Brace_Open) or_return
+
+				enum_values := make([dynamic]string, 0, 8, s.allocator) or_return
+				defer s.types[idx].enum_values = enum_values[:]
+
+				// Parse enum values
+				enum_values_loop: for {
+					token = next_token(&t)
+					#partial switch token.kind {
+					case .Name:
+						append(&enum_values, token.value)
+					case .Brace_Close:
+						break enum_values_loop
+					case:
+						return Error_Unexpected_Token{token}
+					}
+				}
+			case .Union:
+				token = next_token_expect(&t, .Name) or_return
+				idx  := add_type(s, token.value, .Union) or_return
+
+				token = next_token_expect(&t, .Brace_Open) or_return
+
+				types := make([dynamic]int, 0, 4, s.allocator) or_return
+				defer s.types[idx].types = types[:]
+
+				// Parse types
+				types_loop: for {
+					token = next_token(&t)
+					#partial switch token.kind {
+					case .Name:
+						append(&types, find_type(s, token.value))
+					case .Brace_Close:
+						break types_loop
+					case:
+						return Error_Unexpected_Token{token}
+					}
+				}
+			case:
+				return Error_Unexpected_Token{token}
 			}
 		case:
 			return Error_Unexpected_Token{token}
