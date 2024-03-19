@@ -1,8 +1,6 @@
-# Ignore all files without an extension (build artifacts)
-*
-!*.*
-!*/
-*.bin
+# Build aftifacts
+/odin-graphql-parser
+/example/example
 
 # OLS config
 ols.json
