@@ -5,7 +5,7 @@ import "core:mem"
 Schema :: struct {
 	/*
 	Array of all types in the schema.
-	Index 0 is reserved for the `Unknown` type.
+	Index 0 is reserved for the `Unknown` type. (Zero fallback)
 	Index 1 is reserved for the `String` type.
 	Index 2 is reserved for the `Int` type.
 	Index 3 is reserved for the `Float` type.
@@ -220,7 +220,7 @@ schema_parse_string :: proc(
 		case .String, .String_Block:
 			continue
 		// Type Object
-		case .Type:
+		case .Name:
 			token = tokenizer_next(&t)
 
 			#partial switch token.kind {

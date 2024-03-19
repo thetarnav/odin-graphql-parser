@@ -23,7 +23,19 @@ Token_Kind :: enum {
 	Dollar,
 	Exclamation,
 	Vertical_Bar,
-	// Keywords
+	// Scalars
+	Int,
+	Float,
+	String,
+	String_Block,
+	// Identifiers
+	Name,
+	// Operators
+	Spread,
+}
+
+Keyword :: enum {
+	None,
 	Query,
 	Mutation,
 	Subscription,
@@ -41,17 +53,9 @@ Token_Kind :: enum {
 	Extend,
 	Schema,
 	// Keyword Values
-	Boolean,
+	True,
+	False,
 	Null,
-	// Scalars
-	Int,
-	Float,
-	String,
-	String_Block,
-	// Identifiers
-	Name,
-	// Operators
-	Spread,
 }
 
 Tokenizer :: struct {
@@ -165,28 +169,7 @@ next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: b
 			}
 			break
 		}
-		switch t.src[t.offset_write : t.offset_read-t.last_width] {
-		case "query":       token = make_token_ignore_last_char(t, .Query)
-		case "mutation":    token = make_token_ignore_last_char(t, .Mutation)
-		case "subscription":token = make_token_ignore_last_char(t, .Subscription)
-		case "fragment":    token = make_token_ignore_last_char(t, .Fragment)
-		case "directive":   token = make_token_ignore_last_char(t, .Directive)
-		case "enum":        token = make_token_ignore_last_char(t, .Enum)
-		case "union":       token = make_token_ignore_last_char(t, .Union)
-		case "scalar":      token = make_token_ignore_last_char(t, .Scalar)
-		case "type":        token = make_token_ignore_last_char(t, .Type)
-		case "input":       token = make_token_ignore_last_char(t, .Input)
-		case "on":          token = make_token_ignore_last_char(t, .On)
-		case "repeatable":  token = make_token_ignore_last_char(t, .Repeatable)
-		case "interface":   token = make_token_ignore_last_char(t, .Interface)
-		case "implements":  token = make_token_ignore_last_char(t, .Implements)
-		case "extend":      token = make_token_ignore_last_char(t, .Extend)
-		case "schema":      token = make_token_ignore_last_char(t, .Schema)
-		case "true":        token = make_token_ignore_last_char(t, .Boolean)
-		case "false":       token = make_token_ignore_last_char(t, .Boolean)
-		case "null":        token = make_token_ignore_last_char(t, .Null)
-		case:               token = make_token_ignore_last_char(t, .Name)
-		}
+		token = make_token_ignore_last_char(t, .Name)
 	// String
 	case '"':
 		escaping := false
@@ -288,3 +271,32 @@ next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: b
 	return 
 }
 tokenizer_next :: next_token
+
+@(require_results)
+match_keyword :: proc(
+	t: ^Tokenizer,
+	str: string,
+) -> Keyword {
+	switch str {
+	case "query":       return .Query
+	case "mutation":    return .Mutation
+	case "subscription":return .Subscription
+	case "fragment":    return .Fragment
+	case "directive":   return .Directive
+	case "enum":        return .Enum
+	case "union":       return .Union
+	case "scalar":      return .Scalar
+	case "type":        return .Type
+	case "input":       return .Input
+	case "on":          return .On
+	case "repeatable":  return .Repeatable
+	case "interface":   return .Interface
+	case "implements":  return .Implements
+	case "extend":      return .Extend
+	case "schema":      return .Schema
+	case "true":        return .True
+	case "false":       return .False
+	case "null":        return .Null
+	case:               return .None
+	}
+}
