@@ -21,9 +21,9 @@ Schema :: struct {
 	/*
 	Index of the current query, mutation and subscription types in the `Schema.types` array.
 	*/
-	query_idx       : int,
-	mutation_idx    : int,
-	subscription_idx: int,
+	query       : int,
+	mutation    : int,
+	subscription: int,
 	/*
 	Allocator used to allocate memory for Types, Fields and Input_Values.
 	*/
@@ -33,11 +33,10 @@ Schema :: struct {
 Type :: struct {
 	kind       : Type_Kind,
 	name       : string,
-	types      : []int,         // Interface and Union
-	interfaces : []int,         // Object and Interface
-	fields     : []Field,       // Object and Interface
+	interfaces : []int,         // Object and Interface (Index to `Schema.types`)
+	fields     : []Field,       // Object and Interface and Input_Object
+	types      : []int,         // Union (Index to `Schema.types`)
 	enum_values: []string,      // Enum
-	inputs     : []Input_Value, // Input_Object
 }
 
 Type_Kind :: enum {
@@ -249,7 +248,7 @@ schema_parse_string :: proc(
 
 	top_level_loop: for {
 		token = next_token(&t)
-		
+
 		#partial switch token.kind {
 		case .EOF: break top_level_loop
 		// Type Object
@@ -269,12 +268,9 @@ schema_parse_string :: proc(
 					token = next_token_expect(&t, .Name) or_return
 
 					#partial switch match_keyword(field_token.value) {
-					case .Query:
-						s.query_idx        = find_type(s, field_token.value)
-					case .Mutation:
-						s.mutation_idx     = find_type(s, field_token.value)
-					case .Subscription:
-						s.subscription_idx = find_type(s, field_token.value)
+					case .Query:        s.query        = find_type(s, field_token.value)
+					case .Mutation:     s.mutation     = find_type(s, field_token.value)
+					case .Subscription: s.subscription = find_type(s, field_token.value)
 					case:
 						return Error_Unexpected_Token{field_token}
 					}
