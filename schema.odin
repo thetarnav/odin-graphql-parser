@@ -170,7 +170,7 @@ schema_parse :: proc(
 
 		open_lists: u8 = 0
 		for {
-			token = tokenizer_next(t)
+			token = next_token(t)
 			#partial switch token.kind {
 			case .Name:
 				if value.index == 0 {
