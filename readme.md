@@ -43,6 +43,7 @@ schema_src := #load("schema.gql", string)
 main :: proc() {
     schema := schema_make()
 	err := schema_parse(&schema, schema_src)
+    defer schema_delete(schema) // Or free the used allocator
 
     if err != nil {
         fmt.printfln("Error parsing schema: %v", err)

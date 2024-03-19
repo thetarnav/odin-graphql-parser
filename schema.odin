@@ -446,3 +446,14 @@ schema_parse :: proc(
 
 	return
 }
+
+schema_delete :: proc(s: Schema) {
+	for type in s.types[USER_TYPES_START:] {
+		delete(type.fields)
+		delete(type.interfaces)
+		delete(type.members)
+		delete(type.enum_values)
+	}
+	delete(s.types)
+}
+delete_schema :: schema_delete

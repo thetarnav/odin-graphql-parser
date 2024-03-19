@@ -39,6 +39,7 @@ enum Color {
 test_schema :: proc(t: ^test.T) {
 	schema := schema_make()
 	err := schema_parse(&schema, schema_src)
+	defer schema_delete(schema)
 
 	if err != nil {
 		switch e in err {
