@@ -64,7 +64,7 @@ example_parser :: proc(input: string) {
         return
     }
 
-    for type in schema.types {
+    for type in schema.types[gql.USER_TYPES_START:] {
         fmt.printfln("Type: %s", type.name)
     }
 }

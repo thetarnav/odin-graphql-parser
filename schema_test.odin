@@ -21,7 +21,7 @@ type Test implements Node {
 
 type Item implements Node {
 	name: String
-	color(url: String!): Color
+	color(urls: [String!]!): Color
 }
 
 interface Node {
@@ -149,10 +149,11 @@ test_schema :: proc(t: ^test.T) {
 					name = "color",
 					args = {
 						{
-							name = "url",
+							name = "urls",
 							type = {
 								index = 1,
-								non_null_flags = 0b00000001,
+								non_null_flags = 0b00000011,
+								lists = 1,
 							},
 						},
 					},

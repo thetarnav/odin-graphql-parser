@@ -195,11 +195,11 @@ schema_parse :: proc(
 				open_lists  -= 1
 				value.lists += 1
 			case .Exclamation:
-				if value.index == 0 || value.non_null_flags & 1 << value.lists != 0 {
+				if value.index == 0 || value.non_null_flags & (1 << value.lists) != 0 {
 					err = Unexpected_Token_Error{token}
 					return
 				}
-				value.non_null_flags |= 1 << value.lists
+				value.non_null_flags |= (1 << value.lists)
 			case .Brace_Close, .Paren_Close:
 				if open_lists > 0 || value.index == 0 {
 					err = Unexpected_Token_Error{token}
