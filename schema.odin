@@ -299,6 +299,7 @@ schema_parse :: proc(
 						}
 
 						interfaces := make([dynamic]int, 0, 4, s.allocator) or_return
+						defer shrink(&interfaces)
 						defer s.types[idx].interfaces = interfaces[:]
 
 						for {
@@ -321,6 +322,7 @@ schema_parse :: proc(
 				}
 
 				fields := make([dynamic]Field, 0, 8, s.allocator) or_return
+				defer shrink(&fields)
 				defer s.types[idx].fields = fields[:]
 
 				// Parse fields
@@ -337,6 +339,7 @@ schema_parse :: proc(
 						case .Paren_Open:
 							// Parse arguments
 							args := make([dynamic]Input_Value, 0, 4, s.allocator) or_return
+							defer shrink(&args)
 							defer field.args = args[:]
 
 							token = next_token(&t)
@@ -374,6 +377,7 @@ schema_parse :: proc(
 				token = next_token_expect(&t, .Brace_Open) or_return
 
 				fields := make([dynamic]Field, 0, 8, s.allocator) or_return
+				defer shrink(&fields)
 				defer s.types[idx].fields = fields[:]
 
 				// Parse fields
@@ -400,6 +404,7 @@ schema_parse :: proc(
 				token = next_token_expect(&t, .Brace_Open) or_return
 
 				enum_values := make([dynamic]string, 0, 8, s.allocator) or_return
+				defer shrink(&enum_values)
 				defer s.types[idx].enum_values = enum_values[:]
 
 				// Parse enum values
@@ -421,6 +426,7 @@ schema_parse :: proc(
 				token = next_token_expect(&t, .Brace_Open) or_return
 
 				members := make([dynamic]int, 0, 4, s.allocator) or_return
+				defer shrink(&members)
 				defer s.types[idx].members = members[:]
 
 				// Parse members
@@ -443,7 +449,8 @@ schema_parse :: proc(
 			return Unexpected_Token_Error{token}
 		}
 	}
-
+	
+	shrink(&s.types)
 	return
 }
 
