@@ -35,7 +35,7 @@ Type :: struct {
 	name       : string,
 	interfaces : []int,         // Object and Interface (Index to `Schema.types`)
 	fields     : []Field,       // Object and Interface and Input_Object
-	types      : []int,         // Union (Index to `Schema.types`)
+	members    : []int,         // Union (Index to `Schema.types`)
 	enum_values: []string,      // Enum
 }
 
@@ -69,7 +69,7 @@ Type_Value :: struct {
 
 	*/
 	non_null_flags: u8,
-	lists: i8, // Number of List wrappers, MAX: 7
+	lists: u8, // Number of List wrappers, MAX: 7
 }
 
 Field :: struct {
@@ -114,10 +114,11 @@ Error_Unexpected_Token :: struct {
 Error_Repeated_Type :: struct {
 	name: string,
 }
+Allocator_Error :: mem.Allocator_Error
 Schema_Error :: union {
 	Error_Unexpected_Token,
 	Error_Repeated_Type,
-	mem.Allocator_Error,
+	Allocator_Error,
 }
 
 schema_parse_string :: proc(
@@ -131,7 +132,7 @@ schema_parse_string :: proc(
 	) -> (idx: int) {
 		for type, i in s.types[1:] {
 			if type.name == name {
-				return i
+				return i+1
 			}
 		}
 		append(&s.types, Type{name = name})
@@ -150,7 +151,7 @@ schema_parse_string :: proc(
 			if type.kind != .Unknown {
 				err = Error_Repeated_Type{name}
 			}
-			idx = i
+			idx = i+1
 			type.kind = kind
 			return
 		}
@@ -166,7 +167,7 @@ schema_parse_string :: proc(
 		t: ^Tokenizer,
 	) -> (token: Token, value: Type_Value, err: Schema_Error) {
 
-		open_lists: uint = 0
+		open_lists: u8 = 0
 		for {
 			token = tokenizer_next(t)
 			#partial switch token.kind {
@@ -184,20 +185,20 @@ schema_parse_string :: proc(
 					err = Error_Unexpected_Token{token}
 					return
 				}
-				value.lists += 1
-				open_lists  += 1
+				open_lists += 1
 			case .Bracket_Close:
 				if open_lists == 0 || value.index == 0 {
 					err = Error_Unexpected_Token{token}
 					return
 				}
-				open_lists -= 1
+				open_lists  -= 1
+				value.lists += 1
 			case .Exclamation:
-				if value.index == 0 || value.non_null_flags & 1 << open_lists != 0 {
+				if value.index == 0 || value.non_null_flags & 1 << value.lists != 0 {
 					err = Error_Unexpected_Token{token}
 					return
 				}
-				value.non_null_flags |= 1 << open_lists
+				value.non_null_flags |= 1 << value.lists
 			case .Brace_Close, .Paren_Close:
 				if open_lists > 0 || value.index == 0 {
 					err = Error_Unexpected_Token{token}
@@ -325,8 +326,10 @@ schema_parse_string :: proc(
 
 						token = next_token(&t)
 						#partial switch token.kind {
-						case .Colon: // No arguments
-						case .Paren_Open: // Parse arguments
+						case .Colon:
+							// No arguments
+						case .Paren_Open:
+							// Parse arguments
 							args := make([dynamic]Input_Value, 0, 4, s.allocator) or_return
 							defer field.args = args[:]
 
@@ -411,17 +414,17 @@ schema_parse_string :: proc(
 
 				token = next_token_expect(&t, .Brace_Open) or_return
 
-				types := make([dynamic]int, 0, 4, s.allocator) or_return
-				defer s.types[idx].types = types[:]
+				members := make([dynamic]int, 0, 4, s.allocator) or_return
+				defer s.types[idx].members = members[:]
 
-				// Parse types
-				types_loop: for {
+				// Parse members
+				members_loop: for {
 					token = next_token(&t)
 					#partial switch token.kind {
 					case .Name:
-						append(&types, find_type(s, token.value))
+						append(&members, find_type(s, token.value))
 					case .Brace_Close:
-						break types_loop
+						break members_loop
 					case:
 						return Error_Unexpected_Token{token}
 					}

@@ -7,7 +7,7 @@ Token :: struct {
 	value: string,
 }
 
-Token_Kind :: enum {
+Token_Kind :: enum u8 {
 	Invalid,
 	EOF,
 	// Punctuators
@@ -34,7 +34,7 @@ Token_Kind :: enum {
 	Spread,
 }
 
-Keyword :: enum {
+Keyword :: enum u8 {
 	None,
 	Query,
 	Mutation,
