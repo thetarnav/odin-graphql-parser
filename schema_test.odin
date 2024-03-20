@@ -11,8 +11,10 @@ schema {
 }
 
 type Root {
-	test: Test
+	test: TestUnion
 }
+
+union TestUnion = Test | Item
 
 type Test implements Node {
 	name: String!
@@ -100,9 +102,14 @@ test_schema :: proc(t: ^test.T) {
 			},
 		},
 		{ // USER_TYPES_START + 1
+			name       = "TestUnion",
+			kind       = Type_Kind.Union,
+			members    = {USER_TYPES_START + 2, USER_TYPES_START + 3},
+		},
+		{ // USER_TYPES_START + 2
 			name       = "Test",
 			kind       = Type_Kind.Object,
-			interfaces = {USER_TYPES_START + 2},
+			interfaces = {USER_TYPES_START + 4},
 			fields     = {
 				{
 					name = "name",
@@ -121,23 +128,10 @@ test_schema :: proc(t: ^test.T) {
 				},
 			},
 		},
-		{ // USER_TYPES_START + 2
-			name       = "Node",
-			kind       = Type_Kind.Interface,
-			fields     = {
-				{
-					name = "id",
-					type = {
-						index = 5,
-						non_null_flags = 0b00000001,
-					},
-				},
-			},
-		},
 		{ // USER_TYPES_START + 3
 			name       = "Item",
 			kind       = Type_Kind.Object,
-			interfaces = {USER_TYPES_START + 2},
+			interfaces = {USER_TYPES_START + 4},
 			fields     = {
 				{
 					name = "name",
@@ -158,12 +152,25 @@ test_schema :: proc(t: ^test.T) {
 						},
 					},
 					type = {
-						index = USER_TYPES_START + 4,
+						index = USER_TYPES_START + 5,
 					},
 				},
 			},
 		},
 		{ // USER_TYPES_START + 4
+			name       = "Node",
+			kind       = Type_Kind.Interface,
+			fields     = {
+				{
+					name = "id",
+					type = {
+						index = 5,
+						non_null_flags = 0b00000001,
+					},
+				},
+			},
+		},
+		{ // USER_TYPES_START + 5
 			name       = "Color",
 			kind       = Type_Kind.Enum,
 			enum_values = {"RED", "GREEN", "BLUE"},
@@ -172,6 +179,7 @@ test_schema :: proc(t: ^test.T) {
 
 	test.expect_value(t, len(schema.types), USER_TYPES_START + len(expected_types))
 	for type, i in schema.types[USER_TYPES_START:] {
+		// fmt.printfln("type %d: %s", i, type.name)
 		expected := expected_types[i]
 		expect_value_name(t, type.name, expected.name, "name")
 		expect_value_name(t, type.kind, expected.kind, "kind")

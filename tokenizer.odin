@@ -22,7 +22,7 @@ Token_Kind :: enum u8 {
 	At,
 	Dollar,
 	Exclamation,
-	Vertical_Bar,
+	Pipe,
 	// Scalars
 	Int,
 	Float,
@@ -146,7 +146,7 @@ next_token :: proc "contextless" (t: ^Tokenizer) -> (token: Token, before_eof: b
 	case '@': token = make_token(t, .At,)
 	case '$': token = make_token(t, .Dollar)
 	case '!': token = make_token(t, .Exclamation)
-	case '|': token = make_token(t, .Vertical_Bar)
+	case '|': token = make_token(t, .Pipe)
 	case '.':
 		if '.' == next_char(t) &&
 		   '.' == next_char(t)

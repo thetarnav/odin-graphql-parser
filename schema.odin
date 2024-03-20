@@ -83,6 +83,19 @@ Input_Value :: struct {
 	type: Type_Value,
 }
 
+Unexpected_Token_Error :: struct {
+	token: Token,
+}
+Repeated_Type_Error :: struct {
+	name: string,
+}
+Allocator_Error :: mem.Allocator_Error
+Schema_Error :: union {
+	Unexpected_Token_Error,
+	Repeated_Type_Error,
+	Allocator_Error,
+}
+
 USER_TYPES_START :: 6
 
 schema_init :: proc(
@@ -107,19 +120,6 @@ schema_make :: proc(
 	return s, schema_init(&s, allocator)
 }
 make_schema :: schema_make
-
-Unexpected_Token_Error :: struct {
-	token: Token,
-}
-Repeated_Type_Error :: struct {
-	name: string,
-}
-Allocator_Error :: mem.Allocator_Error
-Schema_Error :: union {
-	Unexpected_Token_Error,
-	Repeated_Type_Error,
-	Allocator_Error,
-}
 
 schema_parse :: proc(
 	s: ^Schema,
@@ -247,13 +247,12 @@ schema_parse :: proc(
 	}
 
 	t := tokenizer_make(src)
-	token: Token
-
+	
+	token := next_token(&t)
 	top_level_loop: for {
-		token = next_token(&t)
-
 		#partial switch token.kind {
-		case .EOF: break top_level_loop
+		case .EOF:
+			break top_level_loop
 		// Type Object
 		case .Name:
 			keyword := match_keyword(token.value)
@@ -270,24 +269,21 @@ schema_parse :: proc(
 					token = next_token_expect(&t, .Colon) or_return
 					token = next_token_expect(&t, .Name) or_return
 
-					#partial switch match_keyword(field_token.value) {
-					case .Query:        s.query        = find_type(s, token.value) or_return
-					case .Mutation:     s.mutation     = find_type(s, token.value) or_return
-					case .Subscription: s.subscription = find_type(s, token.value) or_return
+					switch field_token.value {
+					case "query":        s.query        = find_type(s, token.value) or_return
+					case "mutation":     s.mutation     = find_type(s, token.value) or_return
+					case "subscription": s.subscription = find_type(s, token.value) or_return
 					case:
 						return Unexpected_Token_Error{field_token}
 					}
 				}
+				token = next_token(&t)
+
 			case .Type, .Interface:
 				token = next_token_expect(&t, .Name) or_return
 
-				kind: Type_Kind
-				#partial switch keyword {
-				case .Type:      kind = .Object
-				case .Interface: kind = .Interface
-				}
-
-				idx  := add_type(s, token.value, kind) or_return
+				type_kind: Type_Kind = keyword == .Type ? .Object : .Interface
+				idx := add_type(s, token.value, type_kind) or_return
 
 				// Parse interfaces
 				interfaces_check: {
@@ -372,6 +368,8 @@ schema_parse :: proc(
 						return Unexpected_Token_Error{token}
 					}
 				}
+				token = next_token(&t)
+
 			case .Input:
 				token = next_token_expect(&t, .Name) or_return
 				idx  := add_type(s, token.value, .Object) or_return
@@ -399,6 +397,8 @@ schema_parse :: proc(
 						return Unexpected_Token_Error{token}
 					}
 				}
+				token = next_token(&t)
+
 			case .Enum:
 				token = next_token_expect(&t, .Name) or_return
 				idx  := add_type(s, token.value, .Enum) or_return
@@ -421,29 +421,28 @@ schema_parse :: proc(
 						return Unexpected_Token_Error{token}
 					}
 				}
+				token = next_token(&t)
+
 			case .Union:
 				token = next_token_expect(&t, .Name) or_return
 				idx  := add_type(s, token.value, .Union) or_return
 
-				token = next_token_expect(&t, .Brace_Open) or_return
+				token = next_token_expect(&t, .Equals) or_return
 
 				members := make([dynamic]int, 0, 4, s.allocator) or_return
 				defer shrink(&members)
 				defer s.types[idx].members = members[:]
 
 				// Parse members
-				members_loop: for {
+				for {
+					token = next_token_expect(&t, .Name) or_return
+					member := find_type(s, token.value) or_return
+					append(&members, member) or_return
+
 					token = next_token(&t)
-					#partial switch token.kind {
-					case .Name:
-						member := find_type(s, token.value) or_return
-						append(&members, member) or_return
-					case .Brace_Close:
-						break members_loop
-					case:
-						return Unexpected_Token_Error{token}
-					}
+					if token.kind != .Pipe do break
 				}
+
 			case:
 				return Unexpected_Token_Error{token}
 			}
