@@ -1,5 +1,5 @@
 type GlobalLink {
-	id: String!
+	id: ID!
 	title: String!
 	url: String!
 	year: String
@@ -15,20 +15,20 @@ type Mutation {
 	createUser(email: String!): String!
 	updateTopicOfWiki(topicName: String!, prettyName: String!, content: String!, published: Boolean!, topicPath: String!): String!
 	createProduct(name: String!, description: String, imageUrl: String, websiteUrl: String, priceInUsdCents: Int): String!
-	deletePersonalLink(personalLinkId: String!): String!
+	deletePersonalLink(personalLinkId: ID!): String!
 	updateTopicLearningStatus(learningStatus: learningStatus!, topicName: String!, verifiedTopic: Boolean!): String!
-	updatePersonalLinkStatus(action: personalLinkAction!, personalLinkId: String!): String!
+	updatePersonalLinkStatus(action: personalLinkAction!, globalLinkId: ID!): String!
 	addPersonalLink(url: String!, title: String!, linkState: linkState!, liked: Boolean!): String!
 	cancelStripe: String!
 	renewStripe: String!
 	updateStripePlan: String!
-	internalUpdateMemberUntilOfUser(email: String!, memberUntilDateInUnixTime: Int!, stripeSubscriptionObjectId: String!, stripePlan: String!): String!
+	internalUpdateMemberUntilOfUser(email: String!, memberUntilDateInUnixTime: Int!, stripeSubscriptionObjectId: ID!, stripePlan: String!): String!
 	internalUpdateGrafbaseKv(topicsWithConnections: [updateGrafbaseKvOutput!]!): String!
 	internalUpdateLatestGlobalGuide(topicName: String!, topicSummary: String!, sections: [section!]!): String!
 	internalAddGlobalLinkToSection(linkUrl: String!, topicName: String!, sectionName: String!): String!
 }
 type PersonalLink {
-	id: String!
+	id: ID!
 	title: String
 	description: String
 	mainTopic: MainTopicWithTitleAndPrettyName
@@ -44,7 +44,7 @@ type Query {
 	getNotesForGlobalTopic(topicName: String!): [globalNote!]!
 	getAllLinks: outputOfGetAllLinks!
 	getTopicsLearned: getTopicsLearnedOutput!
-	getGlobalLink(linkId: String!): publicGetGlobalLinkOutput!
+	getGlobalLink(linkId: ID!): publicGetGlobalLinkOutput!
 	getGlobalTopic(topicName: String!): getGlobalTopicOutput!
 	getGlobalTopicLearningStatus(topicName: String!): String!
 	getGlobalLinks: getGlobalLinksOutput!
@@ -53,16 +53,16 @@ type Query {
 	stripe(plan: String!, userEmail: String!): String!
 }
 type getGlobalLinksOutput {
-	id: String!
+	id: ID!
 	title: String!
 	url: String!
 }
 type getGlobalTopicOutput {
 	learningStatus: String!
-	linksBookmarkedIds: [String!]!
-	linksInProgressIds: [String!]!
-	linksCompletedIds: [String!]!
-	linksLikedIds: [String!]!
+	linksBookmarkedIds: [ID!]!
+	linksInProgressIds: [ID!]!
+	linksCompletedIds: [ID!]!
+	linksLikedIds: [ID!]!
 }
 type getPricingUserDetailsOutput {
 	stripePlan: String
@@ -151,7 +151,7 @@ type publicGetTopicsWithConnectionsOutput {
 input section {
 	title: String!
 	summary: String
-	linkIds: [String!]!
+	linkIds: [ID!]!
 }
 type topicToLearn {
 	name: String!
