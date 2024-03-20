@@ -15,9 +15,9 @@ import gql "odin-graphql-parser"
 schema_src := #load("schema.gql", string)
 
 main :: proc() {
-    schema := schema_make()
-	err := schema_parse(&schema, schema_src)
-    defer schema_delete(schema) // Or free the used allocator
+    schema := gql.schema_make()
+    err := gql.schema_parse(&schema, schema_src)
+    defer gql.schema_delete(schema) // Or free the used allocator
 
     if err != nil {
         fmt.printfln("Error parsing schema: %v", err)
@@ -33,25 +33,25 @@ main :: proc() {
 ```gql
 # schema.gql
 schema {
-	query: Root
+    query: Root
 }
 type Root {
-	test: Test
+    test: Test
 }
 type Test implements Node {
-	name: String!
-	items: [Item]!
+    name: String!
+    items: [Item]!
 }
 type Item implements Node {
-	name: String
-	color: Color
+    name: String
+    color: Color
 }
 interface Node {
-	id: ID!
+    id: ID!
 }
 enum Color {
-	RED
-	GREEN
-	BLUE
+    RED
+    GREEN
+    BLUE
 }
 ```
