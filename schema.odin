@@ -73,9 +73,9 @@ Type_Value :: struct {
 }
 
 Field :: struct {
-	name: string,
-	args: []Input_Value,
-	type: Type_Value,
+	name : string,
+	args : []Input_Value,
+	value: Type_Value,
 }
 
 Input_Value :: struct {
@@ -360,7 +360,7 @@ schema_parse :: proc(
 							return Unexpected_Token_Error{token}
 						}
 
-						token, field.type = parse_type_value(s, &t) or_return
+						token, field.value = parse_type_value(s, &t) or_return
 						append(&fields, field) or_return
 					case .Brace_Close:
 						break fields_loop
@@ -389,7 +389,7 @@ schema_parse :: proc(
 
 						token = next_token_expect(&t, .Colon) or_return
 
-						token, field.type = parse_type_value(s, &t) or_return
+						token, field.value = parse_type_value(s, &t) or_return
 						append(&fields, field) or_return
 					case .Brace_Close:
 						break input_fields_loop

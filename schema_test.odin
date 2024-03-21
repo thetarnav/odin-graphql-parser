@@ -95,7 +95,7 @@ test_schema :: proc(t: ^test.T) {
 			fields     = {
 				{
 					name = "test",
-					type = {
+					value = {
 						index = USER_TYPES_START + 1,
 					},
 				},
@@ -113,14 +113,14 @@ test_schema :: proc(t: ^test.T) {
 			fields     = {
 				{
 					name = "name",
-					type = {
+					value = {
 						index = 1,
 						non_null_flags = 0b00000001,
 					},
 				},
 				{
 					name = "items",
-					type = {
+					value = {
 						index = USER_TYPES_START + 3,
 						lists = 1,
 						non_null_flags = 0b00000010,
@@ -135,7 +135,7 @@ test_schema :: proc(t: ^test.T) {
 			fields     = {
 				{
 					name = "name",
-					type = {
+					value = {
 						index = 1,
 					},
 				},
@@ -151,7 +151,7 @@ test_schema :: proc(t: ^test.T) {
 							},
 						},
 					},
-					type = {
+					value = {
 						index = USER_TYPES_START + 5,
 					},
 				},
@@ -163,7 +163,7 @@ test_schema :: proc(t: ^test.T) {
 			fields     = {
 				{
 					name = "id",
-					type = {
+					value = {
 						index = 5,
 						non_null_flags = 0b00000001,
 					},
@@ -188,9 +188,9 @@ test_schema :: proc(t: ^test.T) {
 		for field, j in type.fields {
 			expected_field := expected.fields[j]
 			expect_value_name(t, field.name, expected_field.name, "field name")
-			expect_value_name(t, field.type.index, expected_field.type.index, "field type index")
-			test.expectf(t, field.type.non_null_flags == expected_field.type.non_null_flags, "field type flags expected %b, got %b", expected_field.type.non_null_flags, field.type.non_null_flags)
-			expect_value_name(t, field.type.lists, expected_field.type.lists, "field type lists")
+			expect_value_name(t, field.value.index, expected_field.value.index, "field type index")
+			test.expectf(t, field.value.non_null_flags == expected_field.value.non_null_flags, "field type flags expected %b, got %b", expected_field.value.non_null_flags, field.value.non_null_flags)
+			expect_value_name(t, field.value.lists, expected_field.value.lists, "field type lists")
 
 			expect_value_name(t, len(field.args), len(expected_field.args), "args")
 			for arg, k in field.args {
