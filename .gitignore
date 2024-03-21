@@ -1,7 +1,7 @@
-# Build aftifacts
-/odin-graphql-parser
-/odin-grapql-parser
-/example/example
+# Ignore all extensionless files
+*
+!*.*
+!*/
 
 # OLS config
 ols.json
