@@ -79,8 +79,8 @@ Field :: struct {
 }
 
 Input_Value :: struct {
-	name: string,
-	type: Type_Value,
+	name : string,
+	value: Type_Value,
 }
 
 Unexpected_Token_Error :: struct {
@@ -346,7 +346,7 @@ schema_parse :: proc(
 
 									token = next_token_expect(&t, .Colon) or_return
 
-									token, arg.type = parse_type_value(s, &t) or_return
+									token, arg.value = parse_type_value(s, &t) or_return
 									append(&args, arg) or_return
 								case .Paren_Close:
 									break args_loop
@@ -465,3 +465,15 @@ schema_delete :: proc(s: Schema) #no_bounds_check {
 	delete(s.types)
 }
 delete_schema :: schema_delete
+
+type_value_is_non_null :: #force_inline proc(
+	value: Type_Value,
+) -> bool {
+	return value.non_null_flags & 1 != 0
+}
+type_value_is_list_non_null :: #force_inline proc(
+	value: Type_Value,
+	list_idx: u8,
+) -> bool {
+	return value.non_null_flags & (1 << (list_idx+1)) != 0
+}

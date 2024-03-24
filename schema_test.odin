@@ -144,7 +144,7 @@ test_schema :: proc(t: ^test.T) {
 					args = {
 						{
 							name = "urls",
-							type = {
+							value = {
 								index = 1,
 								non_null_flags = 0b00000011,
 								lists = 1,
@@ -196,8 +196,8 @@ test_schema :: proc(t: ^test.T) {
 			for arg, k in field.args {
 				expected_arg := expected_field.args[k]
 				expect_value_name(t, arg.name, expected_arg.name, "arg name")
-				expect_value_name(t, arg.type.index, expected_arg.type.index, "arg type index")
-				test.expectf(t, arg.type.non_null_flags == expected_arg.type.non_null_flags, "arg type flags expected %b, got %b", expected_arg.type.non_null_flags, arg.type.non_null_flags)
+				expect_value_name(t, arg.value.index, expected_arg.value.index, "arg type index")
+				test.expectf(t, arg.value.non_null_flags == expected_arg.value.non_null_flags, "arg type flags expected %b, got %b", expected_arg.value.non_null_flags, arg.value.non_null_flags)
 			}
 		}
 
