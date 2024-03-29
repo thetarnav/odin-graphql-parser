@@ -1,6 +1,7 @@
 package gql
 
 import "core:mem"
+import "core:strings"
 
 Schema :: struct {
 	/*
@@ -466,14 +467,82 @@ schema_delete :: proc(s: Schema) #no_bounds_check {
 }
 delete_schema :: schema_delete
 
+@(require_results)
 type_value_is_non_null :: #force_inline proc(
 	value: Type_Value,
 ) -> bool {
 	return value.non_null_flags & 1 != 0
 }
+@(require_results)
 type_value_is_list_non_null :: #force_inline proc(
 	value: Type_Value,
 	list_idx: u8,
 ) -> bool {
 	return value.non_null_flags & (1 << (list_idx+1)) != 0
+}
+
+/*
+Return a pretty string representation of a schema error.
+*/
+@(require_results)
+schema_error_to_string :: proc(
+	schema_src: string,
+	schema_err: Schema_Error,
+	allocator := context.allocator,
+) -> (text: string, err: mem.Allocator_Error) #optional_allocator_error {
+	switch e in schema_err {
+	case Allocator_Error:
+		switch e {
+		case .None:                 text = "Allocator_Error: None"
+		case .Out_Of_Memory:        text = "Allocator_Error: Out of memory"
+		case .Invalid_Pointer:      text = "Allocator_Error: Invalid pointer"
+		case .Invalid_Argument:     text = "Allocator_Error: Invalid argument"
+		case .Mode_Not_Implemented: text = "Allocator_Error: Mode not implemented"
+		}
+	case Repeated_Type_Error:
+		text = strings.concatenate({"Repeated_Type: \"", e.name, "\""}, allocator) or_return
+	case Unexpected_Token_Error:
+		// Find the position of the token in the source string
+		idx := int(uintptr(raw_data(e.token.value)) - uintptr(raw_data(schema_src)))
+		start_width := 0
+		start := idx
+		end   := idx
+
+		for start > 0 && idx - start < 40 {
+			if schema_src[start] == '\t' {
+				start_width += 7
+			}
+			if schema_src[start] == '\n' {
+				start += 1
+				start_width -= 1
+				break
+			}
+			start_width += 1
+			start -= 1
+		}
+		for i := 0; i < 40; i += 1 {
+			if end < len(schema_src) {
+				if schema_src[end] == '\n' {
+					break
+				}
+				end += 1
+			}
+		}
+
+		b := strings.builder_make_len_cap(0, 128, allocator) or_return
+		strings.write_string(&b, "Unexpected token: \"")
+		strings.write_string(&b, e.token.value)
+		strings.write_string(&b, "\"\n")
+		strings.write_string(&b, schema_src[start:end])
+		strings.write_string(&b, "\n")
+		for _ in 0..<start_width {
+			strings.write_rune(&b, ' ')
+		}
+		for _ in 0..<len(e.token.value) {
+			strings.write_rune(&b, '^')
+		}
+		text = strings.to_string(b)
+	}
+
+	return
 }

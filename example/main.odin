@@ -1,3 +1,4 @@
+//+build !wasm32 !js
 package example
 
 import "core:os"

@@ -44,47 +44,8 @@ test_schema :: proc(t: ^test.T) {
 	defer schema_delete(schema)
 
 	if err != nil {
-		switch e in err {
-			case Unexpected_Token_Error:
-				fmt.printfln("unexpected token %v: %s", e.token.kind, e.token.value)
-
-				token_pos := int(uintptr(raw_data(e.token.value)) - uintptr(raw_data(schema_src)))
-				start_width := 0
-				start := token_pos
-				end   := token_pos
-
-				for start > 0 && token_pos - start < 40 {
-					if schema_src[start] == '\t' {
-						start_width += 7
-					}
-					if schema_src[start] == '\n' {
-						start += 1
-						start_width -= 1
-						break
-					}
-					start_width += 1
-					start -= 1
-				}
-				for i := 0; i < 40; i += 1 {
-					if end < len(schema_src) {
-						if schema_src[end] == '\n' {
-							break
-						}
-						end += 1
-					}
-				}
-
-				fmt.println(schema_src[start:end])
-				// underline the token
-				fmt.printf("%*s", start_width, "")
-				fmt.printf("%*s", len(e.token.value), "^")
-				fmt.println()
-
-			case Repeated_Type_Error:
-				fmt.printfln("repeated type: %v", e.name)
-			case Allocator_Error:
-				fmt.printfln("allocator error: %v", e)
-		}
+		err_str := schema_error_to_string(schema_src, err)
+		fmt.println(err_str)
 		test.fail(t)
 	}
 
