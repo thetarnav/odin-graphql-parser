@@ -1,6 +1,5 @@
 package gql
 
-import "core:fmt"
 import test "core:testing"
 
 Expect_Tokens_Case :: struct {

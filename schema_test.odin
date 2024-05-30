@@ -1,7 +1,6 @@
 package gql
 
 import "core:fmt"
-import "core:mem"
 import "core:intrinsics"
 import test "core:testing"
 
